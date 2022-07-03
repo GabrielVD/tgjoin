@@ -21,7 +21,7 @@ int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest)
     size_t width{sizeof(uint32_t)};
     size_t nmemb{stats.st_size / width};
     void *buffer{malloc(nmemb * width)};
-    if (!buffer)
+    if (buffer == NULL)
     {
         fclose(handle);
         return 1;
@@ -49,17 +49,20 @@ int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest)
 int verify_dataset(const uint32_t *input, size_t input_size, dataset_stats &output)
 {
     dataset_stats stats;
+    uint32_t last_size{0};
     for (size_t i = 1; i < input_size;)
     {
         ++stats.cardinality;
         auto set_size{input[i]};
 
-        if (i + set_size >= input_size)
+        if (set_size < last_size
+        || i + set_size >= input_size)
         {
             return 1;
         }
 
         stats.avg_set_size += set_size;
+        last_size = set_size;
         i += set_size + 2;
     }
 
