@@ -26,9 +26,9 @@ int main(int argc, char **argv)
             dataset_stats stats;
             if (verify_dataset(dataset, size, stats) == 0) {
                 stats.print(stderr);
-                run_join(dataset, size);
+                run_join(dataset, size, stats).print(stderr);
             }
-            else { fprintf(stderr, "Dataset file is malformed\n"); }
+            else { print_formaterr(); }
             SAFE_FREE(&dataset, &size);
         }
     }

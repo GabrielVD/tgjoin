@@ -1,6 +1,8 @@
 #ifndef COMMON_HELPER_IO_H_
 #define COMMON_HELPER_IO_H_
 
+#pragma once
+
 #include <runtime_stats.h>
 
 int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest);
