@@ -320,6 +320,9 @@ else
 	@echo "Build is ready - all dependencies have been met"
 endif
 
+runtime_stats.o:runtime_stats.cu
+	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+
 helper_io.o:helper_io.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
@@ -329,7 +332,7 @@ ssjoin.o:ssjoin.cu
 main.o:main.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-pskgjoin: main.o helper_io.o ssjoin.o
+pskgjoin: main.o helper_io.o ssjoin.o runtime_stats.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	$(EXEC) mkdir -p ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 	$(EXEC) cp $@ ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
@@ -340,7 +343,7 @@ run: build
 testrun: build
 
 clean:
-	rm -f pskgjoin main.o helper_io.o ssjoin.o
+	rm -f pskgjoin main.o helper_io.o ssjoin.o runtime_stats.o
 	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/pskgjoin
 
 clobber: clean

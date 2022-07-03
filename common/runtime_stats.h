@@ -1,6 +1,8 @@
 #ifndef COMMON_RUNTIME_STATS_H_
 #define COMMON_RUNTIME_STATS_H_
 
+#pragma once
+
 #include <stdio.h>
 #include <chrono>
 
@@ -22,8 +24,19 @@ struct dataset_stats
     };
 };
 
+enum ssjoin_status
+{
+    UNDEFINED,
+    MEM_ERR,
+    SUCCESS
+};
+
 struct ssjoin_stats
 {
+    int host2device_ms;
+    ssjoin_status status{ssjoin_status::UNDEFINED};
+
+    void print(FILE *stream);
 };
 
 #endif
