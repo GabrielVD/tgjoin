@@ -40,6 +40,9 @@
 
 #include <helper_string.h>
 
+#define IDX() (blockIdx.x * blockDim.x + threadIdx.x)
+#define STRIDE() (blockDim.x * gridDim.x)
+
 #ifndef EXIT_WAIVED
 #define EXIT_WAIVED 2
 #endif
