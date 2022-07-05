@@ -33,7 +33,8 @@ enum ssjoin_status
 
 struct ssjoin_stats
 {
-    int host2device_ms;
+    int host2device_ms{0};
+    int indexing_ms{0};
     ssjoin_status status{ssjoin_status::UNDEFINED};
 
     void print(FILE *stream);
