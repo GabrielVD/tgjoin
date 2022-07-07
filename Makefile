@@ -311,7 +311,7 @@ endif
 # Target rules
 all: build
 
-build: pskgjoin
+build: mbgjoin
 
 check.deps:
 ifeq ($(BUILD_ENABLED),0)
@@ -338,18 +338,18 @@ ssjoin.o:ssjoin.cu
 main.o:main.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-pskgjoin: main.o helper_io.o ssjoin.o runtime_stats.o ssjoin_index.o ssjoin_shared.o
+mbgjoin: main.o helper_io.o ssjoin.o runtime_stats.o ssjoin_index.o ssjoin_shared.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	$(EXEC) mkdir -p ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 	$(EXEC) cp $@ ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 
 run: build
-	$(EXEC) ./pskgjoin
+	$(EXEC) ./mbgjoin
 
 testrun: build
 
 clean:
-	rm -f pskgjoin main.o helper_io.o ssjoin.o runtime_stats.o ssjoin_index.o ssjoin_shared.o
-	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/pskgjoin
+	rm -f mbgjoin main.o helper_io.o ssjoin.o runtime_stats.o ssjoin_index.o ssjoin_shared.o
+	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/mbgjoin
 
 clobber: clean

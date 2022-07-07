@@ -1,3 +1,4 @@
 *.o
-pskgjoin
+mbgjoin
 .vscode/**
+bin/**
