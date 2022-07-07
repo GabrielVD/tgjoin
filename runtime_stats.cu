@@ -5,10 +5,12 @@ void ssjoin_stats::print(FILE *stream)
     if (status == ssjoin_status::SUCCESS)
     {
         fprintf(stream,
-                "Host to device\t%dms\n"
-                "Indexing\t%dms\n",
+                "Host to device" TABS "%dms\n"
+                "Indexing" TABS "%dms\n"
+                "Max indexed token\t%d\n",
                 host2device_ms,
-                indexing_ms);
+                indexing_ms,
+                max_indexed_token);
     }
     else
     {

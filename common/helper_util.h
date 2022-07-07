@@ -7,6 +7,7 @@
 
 #define HAS_ARG(name) checkCmdLineFlag(argc, (const char **)argv, name)
 #define STR_ARG(name, retval) getCmdLineArgumentString(argc, (const char **)argv, name, retval)
+#define TABS "\t\t"
 
 inline void print_help()
 {

@@ -5,6 +5,7 @@
 
 #include <stdio.h>
 #include <chrono>
+#include <helper_util.h>
 
 #define NOW() std::chrono::steady_clock::now()
 #define TIME_MS(diff) std::chrono::duration_cast<std::chrono::milliseconds>(diff).count()
@@ -17,8 +18,8 @@ struct dataset_stats
     void print(FILE *stream)
     {
         fprintf(stream,
-                "Avg set size\t%.1lf\n"
-                "Cardinality\t%d\n",
+                "Avg set size" TABS "%.1lf\n"
+                "Cardinality" TABS "%d\n",
                 avg_set_size,
                 cardinality);
     };
@@ -35,6 +36,7 @@ struct ssjoin_stats
 {
     int host2device_ms{0};
     int indexing_ms{0};
+    uint32_t max_indexed_token;
     ssjoin_status status{ssjoin_status::UNDEFINED};
 
     void print(FILE *stream);
