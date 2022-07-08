@@ -56,12 +56,12 @@ ssjoin_stats run_join(const uint32_t *input, size_t input_size, dataset_stats ds
 
         checkCudaErrors(cudaDeviceSynchronize());
 
-        stats.token_map_size = buffer[0] + 1;
+        stats.token_map_size = buffer[0] + 2;
 
         checkCudaErrors(cudaMalloc(&token_map_d, BYTES_U(stats.token_map_size)));
         prefix_sum(buffer_d + 2, stats.token_map_size, token_map_d);
 
-        stats.index_entries = buffer[1];
+        stats.indexed_entries = buffer[1];
         checkCudaErrors(cudaDeviceSynchronize());
 
         stats.indexing_ms = TIME_MS(NOW() - start);

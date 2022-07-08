@@ -9,7 +9,7 @@ __global__ void count_tokens(
 {
     const int stride = STRIDE();
     uint32_t token_max{0}, token_count{0};
-    count_d += 2; // reserve 2 cells for [token_max, token_count]
+    count_d += 3; // reserve 3 cells for [token_max, token_count, 0]
 
     for (int idx = IDX(); idx < cardinality; idx += stride)
     {
@@ -26,6 +26,6 @@ __global__ void count_tokens(
             atomicAdd(count_d + token, 1);
         } while (++start < end);
     }
-    atomicMax(count_d - 2, token_max);
-    atomicAdd(count_d - 1, token_count);
+    atomicMax(count_d - 3, token_max);
+    atomicAdd(count_d - 2, token_count);
 }

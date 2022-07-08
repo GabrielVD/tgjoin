@@ -12,7 +12,7 @@ void ssjoin_stats::print(FILE *stream)
                 host2device_ms,
                 indexing_ms,
                 token_map_size - 1,
-                index_entries);
+                indexed_entries);
     }
     else
     {
