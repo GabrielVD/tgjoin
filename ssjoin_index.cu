@@ -8,14 +8,15 @@ __global__ void count_tokens(
     const float threshold)
 {
     const int stride = STRIDE();
-    uint32_t token_max{0};
-    ++count_d; // reserve first cell for token_max
+    uint32_t token_max{0}, token_count{0};
+    count_d += 2; // reserve 2 cells for [token_max, token_count]
 
     for (int idx = IDX(); idx < cardinality; idx += stride)
     {
         auto start{records_d[idx]};
         auto size{records_d[idx + 1] - start};
         size = size + 1 - OVERLAP(threshold, size, size);
+        token_count += size;
 
         const auto end{start + size};
         do
@@ -25,5 +26,6 @@ __global__ void count_tokens(
             atomicAdd(count_d + token, 1);
         } while (++start < end);
     }
-    atomicMax(count_d - 1, token_max);
+    atomicMax(count_d - 2, token_max);
+    atomicAdd(count_d - 1, token_count);
 }

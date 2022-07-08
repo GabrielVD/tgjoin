@@ -7,10 +7,12 @@ void ssjoin_stats::print(FILE *stream)
         fprintf(stream,
                 "Host to device" TABS "%dms\n"
                 "Indexing" TABS "%dms\n"
-                "Max indexed token\t%d\n",
+                "Max indexed token\t%d\n"
+                "Indexed entries" TABS "%d\n",
                 host2device_ms,
                 indexing_ms,
-                max_indexed_token);
+                token_map_size - 1,
+                index_entries);
     }
     else
     {
