@@ -13,4 +13,10 @@ __device__ inline T overlap_jac(float threshold, T x, T y)
 
 #define OVERLAP(threshold, x, y) overlap_jac(threshold, x, y)
 
+template<typename T>
+__device__ inline T index_prefix_size(T set_size, float threshold)
+{
+    return set_size + 1 - OVERLAP(threshold, set_size, set_size);
+}
+
 #endif
