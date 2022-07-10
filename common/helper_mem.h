@@ -4,6 +4,7 @@
 #pragma once
 
 #include <stdlib.h>
+#include <ssjoin_index.cuh>
 
 inline void safe_free(void **ptr, size_t *size)
 {
@@ -12,8 +13,9 @@ inline void safe_free(void **ptr, size_t *size)
     *size = 0;
 }
 
-#define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
 #define BYTES_U(n) ((n) * sizeof(uint32_t))
+#define BYTES_INDEX(n) ((n) * sizeof(index_record))
+#define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
 #define MALLOC_U(size) ((uint32_t *)malloc(BYTES_U(size)))
 
 #endif
