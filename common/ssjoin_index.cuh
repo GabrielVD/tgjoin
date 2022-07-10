@@ -9,9 +9,9 @@
 
 struct index_record
 {
-    uint32_t start_index;
-    uint32_t remaining_tokens;
+    uint32_t id;
     uint32_t size;
+    uint32_t remaining_tokens;
 };
 
 __global__ void count_tokens(
@@ -26,11 +26,6 @@ __global__ void make_index(
     const uint32_t *token_map_d,
     const float threshold,
     uint32_t *count_d,
-    index_record *inverted_index_d);
-
-__global__ void sort_index(
-    const uint32_t *token_map_d,
-    const int token_map_size,
     index_record *inverted_index_d);
 
 inline void prefix_sum(uint32_t *first_d, uint32_t size, uint32_t *result_d)

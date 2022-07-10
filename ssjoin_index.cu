@@ -39,46 +39,20 @@ __global__ void make_index(
     index_record *inverted_index_d)
 {
     const int stride = STRIDE();
-    for (int idx = IDX(); idx < cardinality; idx += stride)
+    index_record record;
+    for (record.id = IDX(); record.id < cardinality; record.id += stride)
     {
-        index_record record;
-        record.start_index = records_d[idx];
-        record.size = records_d[idx + 1] - record.start_index;
-        const auto end{record.start_index
-            + index_prefix_size(record.size, threshold)};
+        auto start{records_d[record.id]};
+        record.size = records_d[record.id + 1] - start;
+        const auto end{start + index_prefix_size(record.size, threshold)};
         
-        for (auto pos{record.start_index}; pos < end; ++pos)
+        while (start < end)
         {
-            record.remaining_tokens = end - pos;
-            const auto token{records_d[pos]};
+            const auto token{records_d[start]};
+            ++start;
+            record.remaining_tokens = record.size - start;
             const auto head{token_map_d[token] + atomicSub(count_d + token, 1)};
             inverted_index_d[head] = record;
         }
-    }
-}
-
-__global__ void sort_index(
-    const uint32_t *token_map_d,
-    const int token_map_size,
-    index_record *inverted_index_d)
-{
-    const int stride = STRIDE();
-    for (int token = IDX(); token < token_map_size - 1; token += stride)
-    {
-        const auto start{token_map_d[token]};
-        const auto end{token_map_d[token + 1]};
-
-        for (auto head{start + 1}; head < end; ++head)
-        {
-            const auto record{inverted_index_d[head]};
-            auto i{head};
-            for (; i > start
-                && inverted_index_d[i-1].start_index < record.start_index; --i)
-            {
-                inverted_index_d[i] = inverted_index_d[i-1];
-            }
-            if (i != head) { inverted_index_d[i] = record; }
-        }
-        
     }
 }

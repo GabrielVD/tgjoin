@@ -8,7 +8,6 @@ struct ssjoin_config
 {
     launch_config count_tokens;
     launch_config make_index;
-    // launch_config sort_index;
 };
 
 struct pointers
@@ -30,11 +29,6 @@ static ssjoin_config launch_config()
         &config.make_index.grid,
         &config.make_index.block,
         make_index));
-
-    // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-    //     &config.sort_index.grid,
-    //     &config.sort_index.block,
-    //     sort_index));
 
     return config;
 }
@@ -88,10 +82,6 @@ static void indexing(
         p.buffer_d + 3, // starting address of token count
         p.inverted_index_d);
 
-    // sort_index<<<config.sort_index.grid, config.sort_index.block>>>(
-    //     p.token_map_d,
-    //     stats.token_map_size,
-    //     p.inverted_index_d);
     checkCudaErrors(cudaDeviceSynchronize());
 }
 

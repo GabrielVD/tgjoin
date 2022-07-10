@@ -36,7 +36,7 @@ struct ssjoin_stats
 {
     int host2device_ms{0};
     int indexing_ms{0};
-    int token_map_size;
+    uint32_t token_map_size;
     uint32_t indexed_entries;
     ssjoin_status status{ssjoin_status::UNDEFINED};
 
