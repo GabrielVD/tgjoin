@@ -1,6 +1,6 @@
 #include <ssjoin_shared.h>
 #include <helper_cuda.h>
-#include <helper_mem.h>
+#include <helper_mem.cuh>
 
 void transfer_records_async(
     uint32_t **records_out,

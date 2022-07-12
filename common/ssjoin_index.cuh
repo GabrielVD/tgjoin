@@ -18,13 +18,13 @@ __global__ void count_tokens(
     const uint32_t *records_d,
     int cardinality,
     uint32_t *count_d,
-    float threshold);
+    float overlap_factor);
 
 __global__ void make_index(
     const uint32_t *records_d,
     const int cardinality,
     const uint32_t *token_map_d,
-    const float threshold,
+    const float overlap_factor,
     uint32_t *count_d,
     index_record *inverted_index_d);
 

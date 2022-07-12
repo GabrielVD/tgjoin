@@ -1,5 +1,5 @@
 #include <helper_io.h>
-#include <helper_mem.h>
+#include <helper_mem.cuh>
 #include <helper_util.h>
 #include <ssjoin.h>
 

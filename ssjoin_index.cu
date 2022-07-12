@@ -6,7 +6,7 @@ __global__ void count_tokens(
     const uint32_t *records_d,
     const int cardinality,
     uint32_t *count_d,
-    const float threshold)
+    const float overlap_factor)
 {
     const int stride = STRIDE();
     uint32_t token_max{0}, token_count{0};
@@ -15,7 +15,7 @@ __global__ void count_tokens(
     for (int idx = IDX(); idx < cardinality; idx += stride)
     {
         auto start{records_d[idx]};
-        const auto size{index_prefix_size(records_d[idx + 1] - start, threshold)};
+        const auto size{index_prefix_size(records_d[idx + 1] - start, overlap_factor)};
         token_count += size;
 
         const auto end{start + size};
@@ -34,7 +34,7 @@ __global__ void make_index(
     const uint32_t *records_d,
     const int cardinality,
     const uint32_t *token_map_d,
-    const float threshold,
+    const float overlap_factor,
     uint32_t *count_d,
     index_record *inverted_index_d)
 {
@@ -44,7 +44,7 @@ __global__ void make_index(
     {
         auto start{records_d[record.id]};
         record.size = records_d[record.id + 1] - start;
-        const auto end{start + index_prefix_size(record.size, threshold)};
+        const auto end{start + index_prefix_size(record.size, overlap_factor)};
         
         while (start < end)
         {
