@@ -1,4 +1,4 @@
-#include <ssjoin_shared.h>
+#include <ssjoin_staging.h>
 #include <helper_cuda.h>
 #include <helper_mem.cuh>
 

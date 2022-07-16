@@ -1,5 +1,5 @@
 #include <ssjoin.h>
-#include <ssjoin_shared.h>
+#include <ssjoin_staging.h>
 #include <ssjoin_index.cuh>
 #include <ssjoin_filtering.cuh>
 #include <helper_mem.cuh>

@@ -1,5 +1,5 @@
-#ifndef COMMON_SSJOIN_SHARED_H_
-#define COMMON_SSJOIN_SHARED_H_
+#ifndef COMMON_SSJOIN_STAGING_H_
+#define COMMON_SSJOIN_STAGING_H_
 
 #pragma once
 
