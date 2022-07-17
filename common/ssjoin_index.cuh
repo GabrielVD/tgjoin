@@ -7,13 +7,6 @@
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 
-struct index_record
-{
-    record_t id;
-    record_t size;
-    record_t remaining_tokens;
-};
-
 __global__ void count_tokens(
     const record_t *records_d,
     int cardinality,

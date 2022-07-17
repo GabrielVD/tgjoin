@@ -4,7 +4,7 @@
 #pragma once
 
 #include <stdlib.h>
-#include <ssjoin_index.cuh>
+#include <ssjoin_types.h>
 #include <cmath>
 
 #define BYTES_U(n) ((n) * sizeof(record_t))

@@ -7,11 +7,11 @@
 #include <algorithm>
 #include <similarity.cuh>
 
-struct ssjoin_config
+struct kernel_config
 {
-    launch_config count_tokens;
-    launch_config make_index;
-    launch_config filter;
+    launch_params count_tokens;
+    launch_params make_index;
+    launch_params filter;
 };
 
 struct pointers
@@ -19,11 +19,12 @@ struct pointers
     record_t *buffer, *buffer_d, *records_d, *token_map_d;
     index_record *inverted_index_d;
     uint8_t *overlap_matrix_d;
+    size_t buffer_size;
 };
 
-static ssjoin_config launch_config()
+static kernel_config get_config()
 {
-    ssjoin_config config;
+    kernel_config config;
 
     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
         &config.count_tokens.grid,
@@ -47,14 +48,13 @@ static void host_to_device(
     const record_t *input,
     const input_info &info,
     pointers &p,
-    size_t &buffer_size,
     float &overlap_factor)
 {
     transfer_records_async(
-        &p.buffer, &p.records_d, buffer_size,
+        &p.buffer, &p.records_d, p.buffer_size,
         input, info.data_size, info.cardinality);
 
-    const auto bytes{BYTES_U(buffer_size)};
+    const auto bytes{BYTES_U(p.buffer_size)};
     checkCudaErrors(cudaMalloc(&p.buffer_d, bytes));
     checkCudaErrors(cudaMemsetAsync(p.buffer_d, 0, bytes));
     overlap_factor = OVERLAP_FAC(info.threshold);
@@ -64,7 +64,7 @@ static void host_to_device(
 
 static void indexing(
     ssjoin_stats &stats,
-    const ssjoin_config &config,
+    const kernel_config &config,
     int cardinality,
     pointers &p,
     const float overlap_factor)
@@ -102,7 +102,7 @@ static void indexing(
 
 static void filtering(
     ssjoin_stats &stats,
-    const ssjoin_config &config,
+    const kernel_config &config,
     const input_info &info,
     pointers &p,
     const float overlap_factor)
@@ -147,14 +147,13 @@ static void filtering(
 ssjoin_stats run_join(const record_t *input, input_info info)
 {
     ssjoin_stats stats;
-    ssjoin_config config{launch_config()};
+    kernel_config config{get_config()};
     pointers p;
-    size_t buffer_size;
     float overlap_factor;
 
     {
         auto start{NOW()};
-        host_to_device(input, info, p, buffer_size, overlap_factor);
+        host_to_device(input, info, p, overlap_factor);
         stats.host2device_ms = TIME_MS(NOW() - start);
     }
 

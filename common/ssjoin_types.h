@@ -7,4 +7,11 @@
 
 typedef uint32_t record_t;
 
+struct index_record
+{
+    record_t id;
+    record_t size;
+    record_t remaining_tokens;
+};
+
 #endif

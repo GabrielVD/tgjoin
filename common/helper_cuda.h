@@ -43,7 +43,7 @@
 #define IDX() (blockIdx.x * blockDim.x + threadIdx.x)
 #define STRIDE() (blockDim.x * gridDim.x)
 
-struct launch_config
+struct launch_params
 {
   int grid;
   int block;
