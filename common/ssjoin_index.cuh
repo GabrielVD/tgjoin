@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <ssjoin_types.h>
+#include <ssjoin_types.cuh>
 #include <thrust/scan.h>
 #include <thrust/device_ptr.h>
 

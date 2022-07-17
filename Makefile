@@ -329,7 +329,7 @@ ssjoin_staging.o:ssjoin_staging.cu
 ssjoin_index.o:ssjoin_index.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-ssjoin_stats.o:ssjoin_stats.cpp
+ssjoin_stats.o:ssjoin_stats.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
 ssjoin.o:ssjoin.cu

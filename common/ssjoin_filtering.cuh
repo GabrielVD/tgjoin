@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <ssjoin_types.h>
+#include <ssjoin_types.cuh>
 
 __global__ void filter(
     const record_t *records_d,

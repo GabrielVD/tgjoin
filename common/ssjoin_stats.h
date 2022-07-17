@@ -3,7 +3,7 @@
 
 #pragma once
 
-#include <ssjoin_types.h>
+#include <ssjoin_types.cuh>
 #include <stdio.h>
 #include <chrono>
 #include <helper_interface.h>
