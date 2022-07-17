@@ -311,7 +311,7 @@ endif
 # Target rules
 all: build
 
-build: mbgjoin
+build: tgjoin
 
 check.deps:
 ifeq ($(BUILD_ENABLED),0)
@@ -338,18 +338,18 @@ ssjoin.o:ssjoin.cu
 main.o:main.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-mbgjoin: main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
+tgjoin: main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	$(EXEC) mkdir -p ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 	$(EXEC) cp $@ ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 
 run: build
-	$(EXEC) ./mbgjoin
+	$(EXEC) ./tgjoin
 
 testrun: build
 
 clean:
-	rm -f mbgjoin main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
-	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/mbgjoin
+	rm -f tgjoin main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
+	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/tgjoin
 
 clobber: clean

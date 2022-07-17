@@ -1,4 +1,4 @@
 *.o
-mbgjoin
+tgjoin
 .vscode/**
 bin/**
