@@ -108,7 +108,8 @@ static void filtering(
     const float overlap_factor)
 {
     checkCudaErrors(cudaMemGetInfo(&stats.matrix_bytesize, NULL));
-    int id_limit = tri_maxfit((stats.matrix_bytesize - 100000000) / sizeof(*p.overlap_matrix_d));
+    int id_limit = tri_maxfit((stats.matrix_bytesize - info.mem_min)
+                                / sizeof(*p.overlap_matrix_d));
     id_limit = std::min(id_limit, info.cardinality);
     stats.matrix_size = tri_rowstart(id_limit);
     stats.matrix_bytesize = stats.matrix_size * sizeof(*p.overlap_matrix_d);

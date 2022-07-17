@@ -12,6 +12,13 @@ int main(int argc, char **argv)
         exit(EXIT_WAIVED);
     }
 
+    size_t mem_min = INT_ARG("mem") * 1000000;
+    if (mem_min == 0) { mem_min = 100000000; }
+
+    fprintf(stderr,
+            "Threshold" TABS "Jaccard %.2f\n"
+            "Minimum free GPU memory\t%ldMB\n",
+            threshold, mem_min / 1000000);
     for (int i = 1; i < argc; ++i)
     {
         if (is_option((const char *)argv[i])) { continue; }
@@ -19,6 +26,7 @@ int main(int argc, char **argv)
         uint32_t *dataset;
         input_info info;
         info.threshold = threshold;
+        info.mem_min = mem_min;
         if (load_dataset(argv[i], &dataset, &info.data_size) == 0)
         {
             if (verify_dataset(dataset, info) == 0) {

@@ -7,14 +7,14 @@
 
 struct input_info
 {
-    size_t data_size{0};
+    size_t data_size{0}, mem_min{0};
     int cardinality{0};
     float avg_set_size{.0f}, threshold{.0f};
 
     void print(FILE *stream)
     {
         fprintf(stream,
-                "Avg set size" TABS "%.1f\n"
+                "Average set size\t%.1f\n"
                 "Cardinality" TABS "%d\n",
                 avg_set_size,
                 cardinality);
