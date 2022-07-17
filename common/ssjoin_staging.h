@@ -45,7 +45,7 @@ inline int load_dataset(const char *pathname, uint32_t **dataset, size_t *size)
     }
     auto end{NOW()};
 
-    fprintf(stderr, "Read %ldMB in %ldms\n",
+    fprintf(stderr, "Read %ldMB in %.3lfms\n",
             (*size * sizeof(uint32_t)) / 1000000,
             TIME_MS(end - start));
 

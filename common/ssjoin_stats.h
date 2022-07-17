@@ -8,7 +8,7 @@
 #include <helper_interface.h>
 
 #define NOW() std::chrono::steady_clock::now()
-#define TIME_MS(diff) std::chrono::duration_cast<std::chrono::milliseconds>(diff).count()
+#define TIME_MS(diff) std::chrono::duration<double, std::milli>(diff).count()
 
 enum ssjoin_status
 {
@@ -21,9 +21,9 @@ struct ssjoin_stats
 {
     size_t matrix_size{0};
     size_t matrix_bytesize{0};
-    int host2device_ms{0};
-    int indexing_ms{0};
-    int filtering_ms{0};
+    double host2device_ms{0};
+    double indexing_ms{0};
+    double filtering_ms{0};
     int iterations{0};
     int token_queries{0};
     int index_queries{0};
