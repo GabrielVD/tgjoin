@@ -6,24 +6,29 @@
 #include <helper_string.h>
 
 #define HAS_ARG(name) checkCmdLineFlag(argc, (const char **)argv, name)
-#define STR_ARG(name, retval) getCmdLineArgumentString(argc, (const char **)argv, name, retval)
+#define FLOAT_ARG(name) getCmdLineArgumentFloat(argc, (const char **)argv, name)
 #define TABS "\t\t"
 
 inline void print_help()
 {
-    fprintf(stderr, "help placeholder\n");
+    fprintf(stderr,
+        "Usage: tgjoin [options] file...\n"
+        "Options:\n"
+        "  help" TABS "Display this information\n"
+        "  j=<threshold>\tThreshold for the Jaccard similarity function\n");
 }
 
 inline void print_formaterr()
 {
     fprintf(stderr, "Dataset file is malformed. "
-                    "Expected ascending list of: [record-id][record-size][token-list]\n");
+                    "Expected size-ascending list of: [record-id][record-size][token-list]\n");
 }
 
 inline bool is_option(const char *arg)
 {
-    return strcasecmp(arg, "h") == 0
-        || strcasecmp(arg, "t") == 0
+    return *arg == '-'
+        || strncasecmp(arg, "j=", 2) == 0
+        || strcasecmp(arg, "h") == 0
         || strcasecmp(arg, "help") == 0;
 }
 

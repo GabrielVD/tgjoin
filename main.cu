@@ -5,7 +5,8 @@
 
 int main(int argc, char **argv)
 {
-    if (argc < 2 || HAS_ARG("h") || HAS_ARG("help"))
+    const auto threshold{FLOAT_ARG("j")};
+    if (argc < 2 || threshold == .0f || HAS_ARG("help") || HAS_ARG("h"))
     {
         print_help();
         exit(EXIT_WAIVED);
@@ -13,14 +14,11 @@ int main(int argc, char **argv)
 
     for (int i = 1; i < argc; ++i)
     {
-        if (is_option((const char *)argv[i]))
-        {
-            ++i;
-            continue;
-        }
-
+        if (is_option((const char *)argv[i])) { continue; }
+        
         uint32_t *dataset;
         input_info info;
+        info.threshold = threshold;
         if (load_dataset(argv[i], &dataset, &info.data_size) == 0)
         {
             if (verify_dataset(dataset, info) == 0) {
@@ -31,6 +29,6 @@ int main(int argc, char **argv)
             SAFE_FREE(&dataset, &info.data_size);
         }
     }
-
+    
     return EXIT_SUCCESS;
 }

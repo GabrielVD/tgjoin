@@ -45,7 +45,7 @@ static ssjoin_config launch_config()
 
 static void host_to_device(
     const uint32_t *input,
-    input_info info,
+    const input_info &info,
     pointers &p,
     size_t &buffer_size,
     float &overlap_factor)
@@ -57,7 +57,7 @@ static void host_to_device(
     const auto bytes{BYTES_U(buffer_size)};
     checkCudaErrors(cudaMalloc(&p.buffer_d, bytes));
     checkCudaErrors(cudaMemsetAsync(p.buffer_d, 0, bytes));
-    overlap_factor = OVERLAP_FAC(0.9f);
+    overlap_factor = OVERLAP_FAC(info.threshold);
 
     checkCudaErrors(cudaDeviceSynchronize());
 }
@@ -103,13 +103,13 @@ static void indexing(
 static void filtering(
     ssjoin_stats &stats,
     const ssjoin_config &config,
-    int cardinality,
+    const input_info &info,
     pointers &p,
     const float overlap_factor)
 {
     checkCudaErrors(cudaMemGetInfo(&stats.matrix_bytesize, NULL));
-    int id_limit = tri_maxfit((stats.matrix_bytesize - 500000000) / sizeof(*p.overlap_matrix_d));
-    id_limit = std::min(id_limit, cardinality);
+    int id_limit = tri_maxfit((stats.matrix_bytesize - 100000000) / sizeof(*p.overlap_matrix_d));
+    id_limit = std::min(id_limit, info.cardinality);
     stats.matrix_size = tri_rowstart(id_limit);
     stats.matrix_bytesize = stats.matrix_size * sizeof(*p.overlap_matrix_d);
     checkCudaErrors(cudaMalloc(&p.overlap_matrix_d, stats.matrix_bytesize));
@@ -127,7 +127,7 @@ static void filtering(
             p.token_map_d,
             stats.token_map_limit,
             p.inverted_index_d,
-            0.9f,
+            info.threshold,
             overlap_factor,
             matrix_tip_d,
             p.buffer_d);
@@ -135,12 +135,12 @@ static void filtering(
         ++stats.iterations;
         id_start = id_limit;
         id_limit = tri_maxfit(stats.matrix_size + tri_rowstart(id_start));
-        id_limit = std::min(id_limit, cardinality);
+        id_limit = std::min(id_limit, info.cardinality);
         matrix_tip_d = p.overlap_matrix_d - tri_rowstart(id_start);
         dirty_bytes = ((matrix_tip_d + tri_rowstart(id_limit)) - p.overlap_matrix_d)
             * sizeof(*p.overlap_matrix_d);
         checkCudaErrors(cudaDeviceSynchronize());
-    } while (id_start < cardinality);
+    } while (id_start < info.cardinality);
 }
 
 ssjoin_stats run_join(const uint32_t *input, input_info info)
@@ -166,7 +166,7 @@ ssjoin_stats run_join(const uint32_t *input, input_info info)
     {
         checkCudaErrors(cudaMemset(p.buffer_d, 0, BYTES_U(2)));
         auto start{NOW()};
-        filtering(stats, config, info.cardinality, p, overlap_factor);
+        filtering(stats, config, info, p, overlap_factor);
         stats.filtering_ms = TIME_MS(NOW() - start);
         checkCudaErrors(cudaMemcpy(p.buffer, p.buffer_d, BYTES_U(2), cudaMemcpyDeviceToHost));
         stats.token_queries = p.buffer[0];
