@@ -3,7 +3,7 @@
 #include <helper_mem.cuh>
 #include <sys/stat.h>
 
-int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest)
+int load_file(const char *pathname, record_t **dest, size_t *nmemb_dest)
 {
     struct stat stats;
     int status{stat(pathname, &stats)};
@@ -18,7 +18,7 @@ int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest)
         return 1;
     }
 
-    size_t width{sizeof(uint32_t)};
+    size_t width{sizeof(record_t)};
     size_t nmemb{stats.st_size / width};
     void *buffer{malloc(nmemb * width)};
     if (buffer == NULL)
@@ -41,14 +41,14 @@ int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest)
         return status;
     }
 
-    *dest = (uint32_t *)buffer;
+    *dest = (record_t *)buffer;
     *nmemb_dest = nmemb;
     return 0;
 }
 
-int verify_dataset(const uint32_t *input, input_info &info)
+int verify_dataset(const record_t *input, input_info &info)
 {
-    uint32_t last_size{0};
+    record_t last_size{0};
     for (size_t i = 1; i < info.data_size;)
     {
         ++info.cardinality;
@@ -70,10 +70,10 @@ int verify_dataset(const uint32_t *input, input_info &info)
 }
 
 void transfer_records_async(
-    uint32_t **records_out,
-    uint32_t **records_d_out,
+    record_t **records_out,
+    record_t **records_d_out,
     size_t &buffer_size,
-    const uint32_t *input,
+    const record_t *input,
     size_t input_size,
     int cardinality)
 {
@@ -82,7 +82,7 @@ void transfer_records_async(
     checkCudaErrors(cudaMalloc(records_d_out, bytes));
     checkCudaErrors(cudaMallocHost(records_out, bytes));
 
-    uint32_t *records{*records_out}, *records_d{*records_d_out};
+    record_t *records{*records_out}, *records_d{*records_d_out};
     {
         size_t set_start = cardinality + 1;
         records[0] = set_start;

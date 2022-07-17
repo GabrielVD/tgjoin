@@ -3,6 +3,7 @@
 
 #pragma once
 
+#include <ssjoin_types.h>
 #include <stdio.h>
 #include <chrono>
 #include <helper_interface.h>
@@ -27,8 +28,8 @@ struct ssjoin_stats
     int iterations{0};
     int token_queries{0};
     int index_queries{0};
-    uint32_t token_map_limit{0};
-    uint32_t indexed_entries{0};
+    record_t token_map_limit{0};
+    record_t indexed_entries{0};
     ssjoin_status status{ssjoin_status::UNDEFINED};
 
     void print(FILE *stream);

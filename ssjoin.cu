@@ -16,7 +16,7 @@ struct ssjoin_config
 
 struct pointers
 {
-    uint32_t *buffer, *buffer_d, *records_d, *token_map_d;
+    record_t *buffer, *buffer_d, *records_d, *token_map_d;
     index_record *inverted_index_d;
     uint8_t *overlap_matrix_d;
 };
@@ -44,7 +44,7 @@ static ssjoin_config launch_config()
 }
 
 static void host_to_device(
-    const uint32_t *input,
+    const record_t *input,
     const input_info &info,
     pointers &p,
     size_t &buffer_size,
@@ -144,7 +144,7 @@ static void filtering(
     } while (id_start < info.cardinality);
 }
 
-ssjoin_stats run_join(const uint32_t *input, input_info info)
+ssjoin_stats run_join(const record_t *input, input_info info)
 {
     ssjoin_stats stats;
     ssjoin_config config{launch_config()};

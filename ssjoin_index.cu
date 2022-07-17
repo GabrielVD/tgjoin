@@ -3,13 +3,13 @@
 #include <similarity.cuh>
 
 __global__ void count_tokens(
-    const uint32_t *records_d,
+    const record_t *records_d,
     const int cardinality,
-    uint32_t *count_d,
+    record_t *count_d,
     const float overlap_factor)
 {
     const int stride = STRIDE();
-    uint32_t token_max{0}, token_count{0};
+    record_t token_max{0}, token_count{0};
     count_d += 3; // reserve 3 cells for [token_max, token_count, 0]
 
     for (int idx = IDX(); idx < cardinality; idx += stride)
@@ -31,11 +31,11 @@ __global__ void count_tokens(
 }
 
 __global__ void make_index(
-    const uint32_t *records_d,
+    const record_t *records_d,
     const int cardinality,
-    const uint32_t *token_map_d,
+    const record_t *token_map_d,
     const float overlap_factor,
-    uint32_t *count_d,
+    record_t *count_d,
     index_record *inverted_index_d)
 {
     const int stride = STRIDE();

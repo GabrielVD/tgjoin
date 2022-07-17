@@ -5,6 +5,6 @@
 
 #include <ssjoin_staging.h>
 
-ssjoin_stats run_join(const uint32_t *input, input_info);
+ssjoin_stats run_join(const record_t *input, input_info);
 
 #endif

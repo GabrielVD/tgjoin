@@ -23,7 +23,7 @@ int main(int argc, char **argv)
     {
         if (is_option((const char *)argv[i])) { continue; }
         
-        uint32_t *dataset;
+        record_t *dataset;
         input_info info;
         info.threshold = threshold;
         info.mem_min = mem_min;

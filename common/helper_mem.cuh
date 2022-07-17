@@ -7,12 +7,10 @@
 #include <ssjoin_index.cuh>
 #include <cmath>
 
-#define BYTES_U(n) ((n) * sizeof(uint32_t))
+#define BYTES_U(n) ((n) * sizeof(record_t))
 #define BYTES_INDEX(n) ((n) * sizeof(index_record))
 #define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
-#define MALLOC_U(size) ((uint32_t *)malloc(BYTES_U(size)))
-
-typedef uint32_t token_t;
+#define MALLOC_U(size) ((record_t *)malloc(BYTES_U(size)))
 
 inline void safe_free(void **ptr, size_t *size)
 {

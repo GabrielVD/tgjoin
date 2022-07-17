@@ -21,18 +21,18 @@ struct input_info
     };
 };
 
-int load_file(const char *pathname, uint32_t **dest, size_t *nmemb_dest);
-int verify_dataset(const uint32_t *input, input_info &);
+int load_file(const char *pathname, record_t **dest, size_t *nmemb_dest);
+int verify_dataset(const record_t *input, input_info &);
 
 void transfer_records_async(
-    uint32_t **records_out,
-    uint32_t **records_d_out,
+    record_t **records_out,
+    record_t **records_d_out,
     size_t &buffer_size,
-    const uint32_t *input,
+    const record_t *input,
     size_t input_size,
     int cardinality);
 
-inline int load_dataset(const char *pathname, uint32_t **dataset, size_t *size)
+inline int load_dataset(const char *pathname, record_t **dataset, size_t *size)
 {
     fprintf(stderr, "Document: %s\n", pathname);
 
@@ -46,7 +46,7 @@ inline int load_dataset(const char *pathname, uint32_t **dataset, size_t *size)
     auto end{NOW()};
 
     fprintf(stderr, "Read %ldMB in %.3lfms\n",
-            (*size * sizeof(uint32_t)) / 1000000,
+            (*size * sizeof(record_t)) / 1000000,
             TIME_MS(end - start));
 
     return 0;
