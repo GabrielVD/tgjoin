@@ -1,5 +1,5 @@
-#ifndef COMMON_HELPER_UTIL_H_
-#define COMMON_HELPER_UTIL_H_
+#ifndef COMMON_HELPER_INTERFACE_H_
+#define COMMON_HELPER_INTERFACE_H_
 
 #pragma once
 

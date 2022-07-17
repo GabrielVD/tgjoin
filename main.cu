@@ -1,6 +1,6 @@
-#include <helper_io.h>
 #include <helper_mem.cuh>
-#include <helper_util.h>
+#include <helper_interface.h>
+#include <ssjoin_staging.h>
 #include <ssjoin.h>
 
 int main(int argc, char **argv)
@@ -20,16 +20,15 @@ int main(int argc, char **argv)
         }
 
         uint32_t *dataset;
-        size_t size;
-        if (load_dataset(argv[i], &dataset, &size) == 0)
+        input_info info;
+        if (load_dataset(argv[i], &dataset, &info.data_size) == 0)
         {
-            dataset_stats stats;
-            if (verify_dataset(dataset, size, stats) == 0) {
-                stats.print(stderr);
-                run_join(dataset, size, stats).print(stderr);
+            if (verify_dataset(dataset, info) == 0) {
+                info.print(stderr);
+                run_join(dataset, info).print(stderr);
             }
             else { print_formaterr(); }
-            SAFE_FREE(&dataset, &size);
+            SAFE_FREE(&dataset, &info.data_size);
         }
     }
 

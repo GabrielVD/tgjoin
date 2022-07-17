@@ -329,10 +329,7 @@ ssjoin_staging.o:ssjoin_staging.cu
 ssjoin_index.o:ssjoin_index.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-runtime_stats.o:runtime_stats.cu
-	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
-
-helper_io.o:helper_io.cu
+ssjoin_stats.o:ssjoin_stats.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
 ssjoin.o:ssjoin.cu
@@ -341,7 +338,7 @@ ssjoin.o:ssjoin.cu
 main.o:main.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-mbgjoin: main.o helper_io.o ssjoin.o runtime_stats.o ssjoin_index.o ssjoin_staging.o ssjoin_filtering.o
+mbgjoin: main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	$(EXEC) mkdir -p ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 	$(EXEC) cp $@ ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
@@ -352,7 +349,7 @@ run: build
 testrun: build
 
 clean:
-	rm -f mbgjoin main.o helper_io.o ssjoin.o runtime_stats.o ssjoin_index.o ssjoin_staging.o ssjoin_filtering.o
+	rm -f mbgjoin main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
 	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/mbgjoin
 
 clobber: clean

@@ -1,4 +1,4 @@
-#include <runtime_stats.h>
+#include <ssjoin_stats.h>
 
 void ssjoin_stats::print(FILE *stream)
 {

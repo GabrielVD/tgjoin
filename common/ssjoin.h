@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include <runtime_stats.h>
+#include <ssjoin_staging.h>
 
-ssjoin_stats run_join(const uint32_t *input, size_t input_size, dataset_stats);
+ssjoin_stats run_join(const uint32_t *input, input_info);
 
 #endif

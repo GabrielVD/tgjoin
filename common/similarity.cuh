@@ -5,6 +5,10 @@
 
 #include <cmath>
 
+#define OVERLAP_FAC(threshold) overlap_factor_jac(threshold)
+#define OVERLAP(x, y, fac) overlap_jac(x, y, fac)
+#define MINSIZE(set_size, threshold) minsize_jac(set_size, threshold)
+
 template<typename T>
 __device__ inline T overlap_jac(T x, T y, float overlap_factor)
 {
@@ -21,10 +25,6 @@ __device__ inline T minsize_jac(T set_size, float threshold)
 {
     return ceil(__fmul_ru(threshold, (float)set_size));
 }
-
-#define OVERLAP_FAC(threshold) overlap_factor_jac(threshold)
-#define OVERLAP(x, y, fac) overlap_jac(x, y, fac)
-#define MINSIZE(set_size, threshold) minsize_jac(set_size, threshold)
 
 template<typename T>
 __device__ inline T index_prefix_size(T set_size, float overlap_factor)

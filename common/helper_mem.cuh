@@ -7,6 +7,13 @@
 #include <ssjoin_index.cuh>
 #include <cmath>
 
+#define BYTES_U(n) ((n) * sizeof(uint32_t))
+#define BYTES_INDEX(n) ((n) * sizeof(index_record))
+#define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
+#define MALLOC_U(size) ((uint32_t *)malloc(BYTES_U(size)))
+
+typedef uint32_t token_t;
+
 inline void safe_free(void **ptr, size_t *size)
 {
     free(*ptr);
@@ -23,10 +30,5 @@ inline size_t tri_maxfit(size_t capacity)
 {
     return std::floor(std::sqrt(2 * capacity + .25) + .5);
 }
-
-#define BYTES_U(n) ((n) * sizeof(uint32_t))
-#define BYTES_INDEX(n) ((n) * sizeof(index_record))
-#define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
-#define MALLOC_U(size) ((uint32_t *)malloc(BYTES_U(size)))
 
 #endif

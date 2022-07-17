@@ -5,25 +5,10 @@
 
 #include <stdio.h>
 #include <chrono>
-#include <helper_util.h>
+#include <helper_interface.h>
 
 #define NOW() std::chrono::steady_clock::now()
 #define TIME_MS(diff) std::chrono::duration_cast<std::chrono::milliseconds>(diff).count()
-
-struct dataset_stats
-{
-    double avg_set_size{.0};
-    int cardinality{0};
-
-    void print(FILE *stream)
-    {
-        fprintf(stream,
-                "Avg set size" TABS "%.1lf\n"
-                "Cardinality" TABS "%d\n",
-                avg_set_size,
-                cardinality);
-    };
-};
 
 enum ssjoin_status
 {
