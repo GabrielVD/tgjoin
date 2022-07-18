@@ -169,8 +169,8 @@ ssjoin_stats run_join(const record_t *input, input_info info)
         filtering(stats, config, info, p, overlap_factor);
         stats.filtering_ms = TIME_MS(NOW() - start);
         checkCudaErrors(cudaMemcpy(p.buffer, p.buffer_d, BYTES_U(2), cudaMemcpyDeviceToHost));
-        stats.token_queries = p.buffer[0];
-        stats.index_queries = p.buffer[1];
+        stats.token_probes = p.buffer[0];
+        stats.index_probes = p.buffer[1];
     }
 
     checkCudaErrors(cudaFree(p.overlap_matrix_d));

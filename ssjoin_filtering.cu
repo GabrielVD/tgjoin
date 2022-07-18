@@ -22,9 +22,9 @@ __global__ void filter(
     const float threshold,
     const float overlap_factor,
     uint8_t *matrix_tip_d,
-    record_t *stats_d) // [token_queries, index_queries]
+    record_t *stats_d) // [token_probes, index_probes]
 {
-    record_t token_queries{0}, index_queries{0};
+    record_t token_probes{0}, index_probes{0};
     const int stride = STRIDE();
     for (id_start += IDX(); id_start < id_limit; id_start += stride)
     {
@@ -37,7 +37,7 @@ __global__ void filter(
         {
             const auto prefix{prefix_size(size, threshold)};
             end += prefix;
-            token_queries += prefix;
+            token_probes += prefix;
         }
         while (start < end)
         {
@@ -47,7 +47,7 @@ __global__ void filter(
             {
                 auto candidate{token_map_d[token]};
                 const auto list_end{token_map_d[token + 1]};
-                index_queries += list_end - candidate;
+                index_probes += list_end - candidate;
                 for (; candidate < list_end; ++candidate)
                 {
                     const auto record{inverted_index_d[candidate]};
@@ -67,6 +67,6 @@ __global__ void filter(
             }
         }
     }
-    atomicAdd(stats_d, token_queries);
-    atomicAdd(stats_d + 1, index_queries);
+    atomicAdd(stats_d, token_probes);
+    atomicAdd(stats_d + 1, index_probes);
 }

@@ -13,8 +13,8 @@ void ssjoin_stats::print(FILE *stream)
                 "Indexed entries" TABS "%d\n"
                 "Overlap matrix size\t%ldMB\n"
                 "Filter iterations\t%d\n"
-                "Token queries" TABS "%d\n"
-                "Index queries" TABS "%d\n",
+                "Token probes" TABS "%d\n"
+                "Index probes" TABS "%d\n",
                 host2device_ms,
                 indexing_ms,
                 filtering_ms,
@@ -23,8 +23,8 @@ void ssjoin_stats::print(FILE *stream)
                 indexed_entries,
                 matrix_bytesize / 1000000,
                 iterations,
-                token_queries,
-                index_queries);
+                token_probes,
+                index_probes);
     }
     else
     {

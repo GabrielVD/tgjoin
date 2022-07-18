@@ -15,6 +15,6 @@ __global__ void filter(
     const float threshold,
     const float overlap_factor,
     uint8_t *matrix_tip_d,
-    record_t *stats_d); // [token_queries, index_queries]
+    record_t *stats_d); // [token_probes, index_probes]
 
 #endif

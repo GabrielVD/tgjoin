@@ -26,8 +26,8 @@ struct ssjoin_stats
     double indexing_ms{0};
     double filtering_ms{0};
     int iterations{0};
-    int token_queries{0};
-    int index_queries{0};
+    int token_probes{0};
+    int index_probes{0};
     record_t token_map_limit{0};
     record_t indexed_entries{0};
     ssjoin_status status{ssjoin_status::UNDEFINED};
