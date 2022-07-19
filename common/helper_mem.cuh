@@ -7,10 +7,10 @@
 #include <ssjoin_types.cuh>
 #include <cmath>
 
-#define BYTES_U(n) ((n) * sizeof(record_t))
+#define BYTES_R(n) ((n) * sizeof(record_t))
 #define BYTES_INDEX(n) ((n) * sizeof(index_record))
 #define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
-#define MALLOC_U(size) ((record_t *)malloc(BYTES_U(size)))
+#define MALLOC_R(size) ((record_t *)malloc(BYTES_R(size)))
 
 inline void safe_free(void **ptr, size_t *size)
 {

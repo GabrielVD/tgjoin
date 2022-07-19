@@ -5,7 +5,7 @@
 
 #include <cstdint>
 
-typedef uint32_t record_t;
+typedef uint32_t record_t; // record id, size or token
 
 struct index_record
 {

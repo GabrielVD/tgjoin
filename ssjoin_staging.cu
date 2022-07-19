@@ -78,7 +78,7 @@ void transfer_records_async(
     int cardinality)
 {
     buffer_size = input_size - cardinality + 1;
-    const size_t bytes{BYTES_U(buffer_size)};
+    const size_t bytes{BYTES_R(buffer_size)};
     checkCudaErrors(cudaMalloc(records_d_out, bytes));
     checkCudaErrors(cudaMallocHost(records_out, bytes));
 
@@ -89,7 +89,7 @@ void transfer_records_async(
         for (size_t i{1}, i_input{1}; i_input < input_size; ++i)
         {
             size_t set_size{input[i_input]};
-            memcpy(records + set_start, input + i_input + 1, BYTES_U(set_size));
+            memcpy(records + set_start, input + i_input + 1, BYTES_R(set_size));
 
             i_input += set_size + 2;
             set_start += set_size;

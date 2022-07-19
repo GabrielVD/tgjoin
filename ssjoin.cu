@@ -54,7 +54,7 @@ static void host_to_device(
         &p.buffer, &p.records_d, p.buffer_size,
         input, info.data_size, info.cardinality);
 
-    const auto bytes{BYTES_U(p.buffer_size)};
+    const auto bytes{BYTES_R(p.buffer_size)};
     checkCudaErrors(cudaMalloc(&p.buffer_d, bytes));
     checkCudaErrors(cudaMemsetAsync(p.buffer_d, 0, bytes));
     overlap_factor = OVERLAP_FAC(info.threshold);
@@ -77,13 +77,13 @@ static void indexing(
 
     // copy [token_max, token_count]
     checkCudaErrors(
-        cudaMemcpyAsync(p.buffer, p.buffer_d, BYTES_U(2), cudaMemcpyDeviceToHost));
+        cudaMemcpyAsync(p.buffer, p.buffer_d, BYTES_R(2), cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaDeviceSynchronize());
 
     // limit of starting indexes
     stats.token_map_limit = p.buffer[0] + 1;
 
-    checkCudaErrors(cudaMalloc(&p.token_map_d, BYTES_U(stats.token_map_limit + 1)));
+    checkCudaErrors(cudaMalloc(&p.token_map_d, BYTES_R(stats.token_map_limit + 1)));
     prefix_sum(p.buffer_d + 2, stats.token_map_limit + 1, p.token_map_d);
 
     stats.indexed_entries = p.buffer[1];
@@ -164,11 +164,11 @@ ssjoin_stats run_join(const record_t *input, input_info info)
     }
 
     {
-        checkCudaErrors(cudaMemset(p.buffer_d, 0, BYTES_U(2)));
+        checkCudaErrors(cudaMemset(p.buffer_d, 0, BYTES_R(2)));
         auto start{NOW()};
         filtering(stats, config, info, p, overlap_factor);
         stats.filtering_ms = TIME_MS(NOW() - start);
-        checkCudaErrors(cudaMemcpy(p.buffer, p.buffer_d, BYTES_U(2), cudaMemcpyDeviceToHost));
+        checkCudaErrors(cudaMemcpy(p.buffer, p.buffer_d, BYTES_R(2), cudaMemcpyDeviceToHost));
         stats.token_probes = p.buffer[0];
         stats.index_probes = p.buffer[1];
     }
