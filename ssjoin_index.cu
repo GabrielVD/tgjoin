@@ -4,15 +4,15 @@
 
 __global__ void count_tokens(
     const record_t *records_d,
-    const int cardinality,
+    const record_t cardinality,
     record_t *count_d,
     const float overlap_factor)
 {
-    const int stride = STRIDE();
+    const record_t stride = STRIDE();
     record_t token_max{0}, token_count{0};
     count_d += 3; // reserve 3 cells for [token_max, token_count, 0]
 
-    for (int idx = IDX(); idx < cardinality; idx += stride)
+    for (record_t idx = IDX(); idx < cardinality; idx += stride)
     {
         auto start{records_d[idx]};
         const auto size{index_prefix_size(records_d[idx + 1] - start, overlap_factor)};
@@ -32,13 +32,13 @@ __global__ void count_tokens(
 
 __global__ void make_index(
     const record_t *records_d,
-    const int cardinality,
+    const record_t cardinality,
     const record_t *token_map_d,
     const float overlap_factor,
     record_t *count_d,
     index_record *inverted_index_d)
 {
-    const int stride = STRIDE();
+    const record_t stride = STRIDE();
     index_record record;
     for (record.id = IDX(); record.id < cardinality; record.id += stride)
     {

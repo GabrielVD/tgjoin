@@ -8,7 +8,7 @@
 struct input_info
 {
     size_t data_size{0}, mem_min{0};
-    int cardinality{0};
+    record_t cardinality{0};
     float avg_set_size{.0f}, threshold{.0f};
 
     void print(FILE *stream)
@@ -30,7 +30,7 @@ void transfer_records_async(
     size_t &buffer_size,
     const record_t *input,
     size_t input_size,
-    int cardinality);
+    record_t cardinality);
 
 inline int load_dataset(const char *pathname, record_t **dataset, size_t *size)
 {

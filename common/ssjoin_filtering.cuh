@@ -7,8 +7,8 @@
 
 __global__ void filter(
     const record_t *records_d,
-    int id_start,
-    const int id_limit,
+    record_t id_start,
+    const record_t id_limit,
     const record_t *token_map_d,
     const record_t token_limit,
     const index_record *inverted_index_d,

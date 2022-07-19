@@ -18,9 +18,8 @@ int load_file(const char *pathname, record_t **dest, size_t *nmemb_dest)
         return 1;
     }
 
-    size_t width{sizeof(record_t)};
-    size_t nmemb{stats.st_size / width};
-    void *buffer{malloc(nmemb * width)};
+    size_t nmemb{stats.st_size / sizeof(record_t)};
+    void *buffer{malloc(nmemb * sizeof(record_t))};
     if (buffer == NULL)
     {
         fclose(handle);
@@ -75,7 +74,7 @@ void transfer_records_async(
     size_t &buffer_size,
     const record_t *input,
     size_t input_size,
-    int cardinality)
+    record_t cardinality)
 {
     buffer_size = input_size - cardinality + 1;
     const size_t bytes{BYTES_R(buffer_size)};
@@ -84,11 +83,11 @@ void transfer_records_async(
 
     record_t *records{*records_out}, *records_d{*records_d_out};
     {
-        size_t set_start = cardinality + 1;
+        auto set_start = cardinality + 1;
         records[0] = set_start;
-        for (size_t i{1}, i_input{1}; i_input < input_size; ++i)
+        for (record_t i{1}, i_input{1}; i_input < input_size; ++i)
         {
-            size_t set_size{input[i_input]};
+            auto set_size{input[i_input]};
             memcpy(records + set_start, input + i_input + 1, BYTES_R(set_size));
 
             i_input += set_size + 2;

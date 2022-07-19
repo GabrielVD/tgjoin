@@ -9,13 +9,13 @@
 
 __global__ void count_tokens(
     const record_t *records_d,
-    int cardinality,
+    record_t cardinality,
     record_t *count_d,
     float overlap_factor);
 
 __global__ void make_index(
     const record_t *records_d,
-    const int cardinality,
+    const record_t cardinality,
     const record_t *token_map_d,
     const float overlap_factor,
     record_t *count_d,

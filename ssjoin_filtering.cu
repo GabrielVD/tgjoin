@@ -14,8 +14,8 @@ __device__ static T min_d(T a, T b)
 
 __global__ void filter(
     const record_t *records_d,
-    int id_start,
-    const int id_limit,
+    record_t id_start,
+    const record_t id_limit,
     const record_t *token_map_d,
     const record_t token_limit,
     const index_record *inverted_index_d,
@@ -25,7 +25,7 @@ __global__ void filter(
     record_t *stats_d) // [token_probes, index_probes]
 {
     record_t token_probes{0}, index_probes{0};
-    const int stride = STRIDE();
+    const record_t stride = STRIDE();
     for (id_start += IDX(); id_start < id_limit; id_start += stride)
     {
         auto *overlap_row{matrix_tip_d + tri_rowstart(id_start)};
