@@ -3,50 +3,48 @@
 #include <helper_mem.cuh>
 #include <sys/stat.h>
 
-int load_file(const char *pathname, record_t **dest, size_t *nmemb_dest)
+#define WIDTH sizeof(record_t)
+
+int check_filesize(const char *pathname, size_t *size)
 {
     struct stat stats;
     int status{stat(pathname, &stats)};
+    if (status != 0) { return status; }
+
+    *size = stats.st_size / WIDTH;
+    return 0;
+}
+
+int load_file(const char *pathname, record_t **ptr, const size_t size)
+{
+    FILE *stream{fopen(pathname, "rb")};
+    if (stream == NULL) { return 1; }
+
+    void *buffer;
+    checkCudaErrors(cudaMallocHost(&buffer, size * WIDTH));
+
+    if (fread(buffer, WIDTH, size, stream) != size)
+    {
+        checkCudaErrors(cudaFreeHost(buffer));
+        fclose(stream);
+        return 1;
+    }
+
+    int status = fclose(stream);
     if (status != 0)
     {
+        checkCudaErrors(cudaFreeHost(buffer));
         return status;
     }
 
-    FILE *handle{fopen(pathname, "rb")};
-    if (!handle)
-    {
-        return 1;
-    }
-
-    size_t nmemb{stats.st_size / sizeof(record_t)};
-    void *buffer{malloc(nmemb * sizeof(record_t))};
-    if (buffer == NULL)
-    {
-        fclose(handle);
-        return 1;
-    }
-
-    if (fread(buffer, width, nmemb, handle) != nmemb)
-    {
-        free(buffer);
-        fclose(handle);
-        return 1;
-    }
-
-    status = fclose(handle);
-    if (status != 0)
-    {
-        free(buffer);
-        return status;
-    }
-
-    *dest = (record_t *)buffer;
-    *nmemb_dest = nmemb;
+    *ptr = (record_t *)buffer;
     return 0;
 }
 
 int verify_dataset(const record_t *input, input_info &info)
 {
+    info.cardinality = 0;
+
     record_t last_size{0};
     for (size_t i = 1; i < info.data_size;)
     {
@@ -59,42 +57,22 @@ int verify_dataset(const record_t *input, input_info &info)
             return 1;
         }
 
-        info.avg_set_size += set_size;
         last_size = set_size;
         i += set_size + 2;
     }
 
-    info.avg_set_size /= info.cardinality;
+    info.avg_set_size = (info.data_size - 2 * info.cardinality) / (float)info.cardinality;
     return 0;
 }
 
-void transfer_records_async(
-    record_t **records_out,
-    record_t **records_d_out,
-    size_t &buffer_size,
+void transfer_input_async(
     const record_t *input,
-    size_t input_size,
-    record_t cardinality)
+    const input_info &info,
+    void *buffer_d)
 {
-    buffer_size = input_size - cardinality + 1;
-    const size_t bytes{BYTES_R(buffer_size)};
-    checkCudaErrors(cudaMalloc(records_d_out, bytes));
-    checkCudaErrors(cudaMallocHost(records_out, bytes));
+    // const size_t bytes{BYTES_R(buffer_size)};
+    // checkCudaErrors(cudaMalloc(records_d_out, bytes));
+    // checkCudaErrors(cudaMallocHost(records_out, bytes));
 
-    record_t *records{*records_out}, *records_d{*records_d_out};
-    {
-        auto set_start = cardinality + 1;
-        records[0] = set_start;
-        for (record_t i{1}, i_input{1}; i_input < input_size; ++i)
-        {
-            auto set_size{input[i_input]};
-            memcpy(records + set_start, input + i_input + 1, BYTES_R(set_size));
-
-            i_input += set_size + 2;
-            set_start += set_size;
-            records[i] = set_start;
-        }
-    }
-
-    checkCudaErrors(cudaMemcpyAsync(records_d, records, bytes, cudaMemcpyHostToDevice));
+    // checkCudaErrors(cudaMemcpyAsync(records_d, records, bytes, cudaMemcpyHostToDevice));
 }

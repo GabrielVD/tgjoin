@@ -15,6 +15,7 @@ enum ssjoin_status
 {
     UNDEFINED,
     MEM_ERR,
+    IO_ERR,
     SUCCESS
 };
 
@@ -22,9 +23,10 @@ struct ssjoin_stats
 {
     size_t matrix_size{0};
     size_t matrix_bytesize{0};
-    double host2device_ms{0};
-    double indexing_ms{0};
-    double filtering_ms{0};
+    double io_ms{.0};
+    double host2device_ms{.0};
+    double indexing_ms{.0};
+    double filtering_ms{.0};
     int iterations{0};
     int token_probes{0};
     int index_probes{0};

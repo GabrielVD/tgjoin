@@ -13,7 +13,7 @@
 inline void print_help()
 {
     fprintf(stderr,
-        "Usage: tgjoin [options] file...\n"
+        "Usage: tgjoin [options] file\n"
         "Options:\n"
         "  help" TABS "Display this information\n"
         "  j=<threshold>\tThreshold for the Jaccard similarity function\n"

@@ -2,8 +2,9 @@
 
 void ssjoin_stats::print(FILE *stream)
 {
-    if (status == ssjoin_status::SUCCESS)
+    switch (status)
     {
+    case ssjoin_status::SUCCESS:
         fprintf(stream,
                 "Host to device" TABS "%.3lfms\n"
                 "Indexing" TABS "%.3lfms\n"
@@ -25,9 +26,13 @@ void ssjoin_stats::print(FILE *stream)
                 iterations,
                 token_probes,
                 index_probes);
-    }
-    else
-    {
+        break;
+
+    case ssjoin_status::IO_ERR:
+        fprintf(stream, "Error during file operation\n");
+        break;
+        
+    default:
         fprintf(stream, "Error\n");
     }
 }
