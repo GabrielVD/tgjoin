@@ -11,7 +11,9 @@ struct input_info
     const char *pathname;
     size_t datacount{0}, mem_min{0};
     record_t cardinality{0};
-    float avg_set_size{.0f}, threshold{.0f};
+    float avg_set_size{.0f};
+    float threshold{.0f};
+    float overlap_factor{.0f};
 
     void print(FILE *stream);
 };

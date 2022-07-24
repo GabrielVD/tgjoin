@@ -16,7 +16,8 @@
 
 struct pointers_t
 {
-    record_t *buffer, *pool_d;
+    byte_t *pool_d, *pool_limit_d;
+    record_t *buffer, *dataset_d, *record_map_d, *buffer_d;
 };
 
 struct streams_t
@@ -81,37 +82,80 @@ static int file_read(ssjoin_stats &stats, input_info &info, record_t **buffer)
     return 0;
 }
 
-static void host_to_device(joinstate_t &state, const input_info &info)
+static size_t pool_size(const input_info &info)
 {
-    const size_t input_bytes{BYTES_R(info.datacount)};
-    {
-        checkCudaErrors(cudaMemGetInfo(&state.stats.pool_size, NULL));
-        state.stats.pool_size -= info.mem_min;
+    size_t size;
+    checkCudaErrors(cudaMemGetInfo(&size, NULL));
+    size -= info.mem_min;
 
-        const auto overlap_size{BYTES_O(tri_rowstart(info.cardinality + 1))};
-        if (overlap_size < state.stats.pool_size)
-        {
-            state.stats.pool_size = std::min(
-                state.stats.pool_size,
-                2 * input_bytes
-                    + BYTES_R(info.cardinality)
-                    + BYTES_I(info.cardinality * (size_t)info.avg_set_size)
-                    + overlap_size);
-        }
+    const size_t overlap_size{BYTES_O(tri_rowstart(info.cardinality + 1))};
+    if (overlap_size < size)
+    {
+        size = std::min(
+            size,
+            2 * BYTES_R(info.datacount)
+                + BYTES_R(info.cardinality)
+                + BYTES_I(info.cardinality * (size_t)info.avg_set_size)
+                + overlap_size);
     }
 
+    return size;
+}
+
+static void map_records_async(
+    record_t *record_map,
+    size_t size,
+    const joinstate_t &state,
+    const input_info &info,
+    cudaStream_t stream)
+{
+    record_t record_index{1};
+    for (int i = 0; i < info.cardinality; i++)
+    {
+        record_map[i] = record_index;
+        record_index += state.ptr.buffer[record_index] + 2;
+    }
+
+    checkCudaErrors(cudaMemcpyAsync(
+        state.ptr.record_map_d,
+        record_map,
+        size,
+        cudaMemcpyHostToDevice,
+        stream));
+}
+
+static void host_to_device(joinstate_t &state, input_info &info)
+{
+    state.stats.pool_size = pool_size(info);
     checkCudaErrors(cudaMalloc(&state.ptr.pool_d, state.stats.pool_size));
+
+    size_t input_bytes = BYTES_R(info.datacount);
     checkCudaErrors(cudaMemcpyAsync(
         state.ptr.pool_d,
         state.ptr.buffer,
         input_bytes,
         cudaMemcpyHostToDevice,
         state.stream.a));
-    
-    // checkCudaErrors(cudaMemsetAsync(p.buffer_d, 0, bytes, state.stream.b));
-    // overlap_factor = OVERLAP_FAC(info.threshold);
 
+    state.ptr.record_map_d = (record_t*)(state.ptr.pool_d + input_bytes);
+    state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
+    state.ptr.buffer_d = state.ptr.record_map_d + info.cardinality;
+
+    const size_t cardinality_bytes = BYTES_R(info.cardinality);
+    checkCudaErrors(cudaMemsetAsync(
+        state.ptr.buffer_d,
+        0,
+        input_bytes - 2 * cardinality_bytes,
+        state.stream.b));
+
+    record_t *record_map = (record_t *)malloc(cardinality_bytes);
+    map_records_async(record_map, cardinality_bytes, state, info, state.stream.a);
+    
+    info.overlap_factor = OVERLAP_FAC(info.threshold);
+
+    state.ptr.dataset_d = (record_t*)state.ptr.pool_d;
     checkCudaErrors(cudaDeviceSynchronize());
+    free(record_map);
 }
 
 // static void indexing(

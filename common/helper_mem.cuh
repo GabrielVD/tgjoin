@@ -11,6 +11,8 @@
 #define BYTES_O(n) ((n) * sizeof(overlap_t))
 #define BYTES_I(n) ((n) * sizeof(index_record))
 
+typedef unsigned char byte_t;
+
 __host__ __device__ inline size_t tri_rowstart(size_t i)
 {
     return (i * (i - 1)) / 2;
