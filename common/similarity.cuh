@@ -27,7 +27,7 @@ __device__ inline T minsize_jac(T set_size, float threshold)
 }
 
 template<typename T>
-__device__ inline T index_prefix_size(T set_size, float overlap_factor)
+__host__ __device__ inline T index_prefix_size(T set_size, float overlap_factor)
 {
     return set_size + 1 - OVERLAP(set_size, set_size, overlap_factor);
 }

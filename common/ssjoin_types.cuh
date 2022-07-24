@@ -6,6 +6,7 @@
 #include <cstdint>
 
 typedef int32_t record_t; // record id, size or token
+typedef uint8_t overlap_t; // overlap count
 
 struct index_record
 {

@@ -14,16 +14,15 @@
 enum ssjoin_status
 {
     UNDEFINED,
-    MEM_ERR,
     IO_ERR,
+    FORMAT_ERR,
     SUCCESS
 };
 
 struct ssjoin_stats
 {
-    size_t matrix_size{0};
-    size_t matrix_bytesize{0};
-    double io_ms{.0};
+    size_t pool_size{0};
+    double read_ms{.0};
     double host2device_ms{.0};
     double indexing_ms{.0};
     double filtering_ms{.0};

@@ -5,25 +5,25 @@
 
 #define WIDTH sizeof(record_t)
 
-int check_filesize(const char *pathname, size_t *size)
+int check_filesize(const char *pathname, size_t *datacount)
 {
     struct stat stats;
     int status{stat(pathname, &stats)};
     if (status != 0) { return status; }
 
-    *size = stats.st_size / WIDTH;
+    *datacount = stats.st_size / WIDTH;
     return 0;
 }
 
-int load_file(const char *pathname, record_t **ptr, const size_t size)
+int load_file(const char *pathname, record_t **ptr, const size_t datacount)
 {
     FILE *stream{fopen(pathname, "rb")};
     if (stream == NULL) { return 1; }
 
     void *buffer;
-    checkCudaErrors(cudaMallocHost(&buffer, size * WIDTH));
+    checkCudaErrors(cudaMallocHost(&buffer, datacount * WIDTH));
 
-    if (fread(buffer, WIDTH, size, stream) != size)
+    if (fread(buffer, WIDTH, datacount, stream) != datacount)
     {
         checkCudaErrors(cudaFreeHost(buffer));
         fclose(stream);
@@ -46,13 +46,13 @@ int verify_dataset(const record_t *input, input_info &info)
     info.cardinality = 0;
 
     record_t last_size{0};
-    for (size_t i = 1; i < info.data_size;)
+    for (size_t i = 1; i < info.datacount;)
     {
         ++info.cardinality;
         auto set_size{input[i]};
 
         if (set_size < last_size
-        || i + set_size >= info.data_size)
+        || i + set_size >= info.datacount)
         {
             return 1;
         }
@@ -61,18 +61,17 @@ int verify_dataset(const record_t *input, input_info &info)
         i += set_size + 2;
     }
 
-    info.avg_set_size = (info.data_size - 2 * info.cardinality) / (float)info.cardinality;
+    info.avg_set_size = (info.datacount - 2 * info.cardinality) / (float)info.cardinality;
     return 0;
 }
 
-void transfer_input_async(
-    const record_t *input,
-    const input_info &info,
-    void *buffer_d)
+void input_info::print(FILE *stream)
 {
-    // const size_t bytes{BYTES_R(buffer_size)};
-    // checkCudaErrors(cudaMalloc(records_d_out, bytes));
-    // checkCudaErrors(cudaMallocHost(records_out, bytes));
-
-    // checkCudaErrors(cudaMemcpyAsync(records_d, records, bytes, cudaMemcpyHostToDevice));
+    fprintf(stream,
+            "Dataset size" TABS "%ldMB\n"
+            "Average set size\t%.1f\n"
+            "Cardinality" TABS "%d\n",
+            BYTES_R(datacount) / 1000000,
+            avg_set_size,
+            cardinality);
 }

@@ -8,16 +8,8 @@
 #include <cmath>
 
 #define BYTES_R(n) ((n) * sizeof(record_t))
-#define BYTES_INDEX(n) ((n) * sizeof(index_record))
-#define SAFE_FREE(ptr, size) safe_free((void **)ptr, size)
-#define MALLOC_R(size) ((record_t *)malloc(BYTES_R(size)))
-
-inline void safe_free(void **ptr, size_t *size)
-{
-    free(*ptr);
-    *ptr = NULL;
-    *size = 0;
-}
+#define BYTES_O(n) ((n) * sizeof(overlap_t))
+#define BYTES_I(n) ((n) * sizeof(index_record))
 
 __host__ __device__ inline size_t tri_rowstart(size_t i)
 {

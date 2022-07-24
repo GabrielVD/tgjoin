@@ -21,12 +21,6 @@ inline void print_help()
         "Assumed to be less than the required to join, defaults to 100\n");
 }
 
-inline void print_formaterr()
-{
-    fprintf(stderr, "Dataset file is malformed. "
-                    "Expected size-ascending list of: [record-id][record-size][token-list]\n");
-}
-
 inline bool is_option(const char *arg)
 {
     return *arg == '-'
