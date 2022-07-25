@@ -8,7 +8,7 @@
 #include <thrust/device_ptr.h>
 
 __global__ void count_tokens(
-    const record_t *records_d,
+    const record_t *record_map_d,
     record_t cardinality,
     record_t *count_d,
     float overlap_factor);

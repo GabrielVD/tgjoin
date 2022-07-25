@@ -17,7 +17,10 @@ struct kernel_config
 struct pointers_t
 {
     byte_t *pool_d, *pool_limit_d;
-    record_t *buffer, *dataset_d, *record_map_d, *buffer_d;
+    record_t *buffer;
+    record_t *record_map_d;
+    record_t *buffer_d;
+    record_t *token_map_d;
 };
 
 struct streams_t
@@ -42,27 +45,27 @@ struct joinstate_t
 //     size_t buffer_size;
 // };
 
-// static kernel_config get_config()
-// {
-//     kernel_config config;
+static kernel_config get_config()
+{
+    kernel_config config;
 
-//     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-//         &config.count_tokens.grid,
-//         &config.count_tokens.block,
-//         count_tokens));
+    checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
+        &config.count_tokens.grid,
+        &config.count_tokens.block,
+        count_tokens));
 
-//     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-//         &config.make_index.grid,
-//         &config.make_index.block,
-//         make_index));
+    // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
+    //     &config.make_index.grid,
+    //     &config.make_index.block,
+    //     make_index));
 
-//     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-//         &config.filter.grid,
-//         &config.filter.block,
-//         filter));
+    // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
+    //     &config.filter.grid,
+    //     &config.filter.block,
+    //     filter));
 
-//     return config;
-// }
+    return config;
+}
 
 static int file_read(ssjoin_stats &stats, input_info &info, record_t **buffer)
 {
@@ -133,79 +136,78 @@ static void map_records_async(
 static void host_to_device(joinstate_t &state, input_info &info)
 {
     // pool layout
-    // [record_map; dataset; buffer; token_map; inverted_index; overlap_matrix]
+    // [record_map; buffer; token_map; inverted_index; overlap_matrix]
     state.stats.pool_size = pool_size(info);
     checkCudaErrors(cudaMalloc(&state.ptr.pool_d, state.stats.pool_size));
 
-    state.ptr.dataset_d = (record_t*)(state.ptr.pool_d) + (info.cardinality + 1);
-    checkCudaErrors(cudaMemcpyAsync(
-        state.ptr.dataset_d,
-        state.ptr.buffer,
-        BYTES_R(info.datacount),
-        cudaMemcpyHostToDevice,
-        state.stream.a));
+    {
+        state.ptr.record_map_d = (record_t*)state.ptr.pool_d;
+        record_t *dataset_d = state.ptr.record_map_d + (info.cardinality + 1);
+        checkCudaErrors(cudaMemcpyAsync(
+            dataset_d,
+            state.ptr.buffer,
+            BYTES_R(info.datacount),
+            cudaMemcpyHostToDevice,
+            state.stream.a));
 
-    state.ptr.buffer_d = state.ptr.dataset_d + info.datacount;
+        state.ptr.buffer_d = dataset_d + info.datacount;
+    }
 
-    // zero out a region of size (token_count + 1)
+    // zero out a region of size (token_count + 2)
     checkCudaErrors(cudaMemsetAsync(
-        state.ptr.buffer_d + 1,
+        state.ptr.buffer_d,
         0,
-        BYTES_R(info.datacount - 2 * info.cardinality + 1),
+        BYTES_R(info.datacount - 2 * info.cardinality + 2),
         state.stream.b));
 
     record_t *record_map;
     {
         const size_t size = BYTES_R(info.cardinality + 1);
         record_map = (record_t *)malloc(size);
-        state.ptr.record_map_d = (record_t*)state.ptr.pool_d;
         map_records_async(record_map, size, state, info, state.stream.a);
     }
     
     state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
+    state.ptr.token_map_d = state.ptr.buffer_d + info.datacount;
     state.overlap_factor = OVERLAP_FAC(info.threshold);
 
     checkCudaErrors(cudaDeviceSynchronize());
     free(record_map);
 }
 
-// static void indexing(
-//     ssjoin_stats &stats,
-//     const kernel_config &config,
-//     record_t cardinality,
-//     pointers &p,
-//     const float overlap_factor)
-// {
-//     count_tokens<<<config.count_tokens.grid, config.count_tokens.block>>>(
-//         p.records_d,
-//         cardinality,
-//         p.buffer_d,
-//         overlap_factor);
+static void indexing(joinstate_t &state, const input_info &info)
+{
+    count_tokens<<<state.config.count_tokens.grid, state.config.count_tokens.block>>>(
+        state.ptr.record_map_d,
+        info.cardinality,
+        state.ptr.buffer_d,
+        state.overlap_factor);
 
-//     // copy [token_max, token_count]
-//     checkCudaErrors(
-//         cudaMemcpyAsync(p.buffer, p.buffer_d, BYTES_R(2), cudaMemcpyDeviceToHost));
-//     checkCudaErrors(cudaDeviceSynchronize());
+    // copy [token_max]
+    checkCudaErrors(
+        cudaMemcpyAsync(
+            state.ptr.buffer,
+            state.ptr.buffer_d,
+            BYTES_R(1),
+            cudaMemcpyDeviceToHost));
+    checkCudaErrors(cudaDeviceSynchronize());
 
-//     // limit of starting indexes
-//     stats.token_map_limit = p.buffer[0] + 1;
+    state.stats.token_map_limit = state.ptr.buffer[0] + 1;
+    prefix_sum(
+        state.ptr.buffer_d + 1,
+        state.stats.token_map_limit + 1,
+        state.ptr.token_map_d);
 
-//     checkCudaErrors(cudaMalloc(&p.token_map_d, BYTES_R(stats.token_map_limit + 1)));
-//     prefix_sum(p.buffer_d + 2, stats.token_map_limit + 1, p.token_map_d);
+    // make_index<<<config.make_index.grid, config.make_index.block>>>(
+    //     p.records_d,
+    //     cardinality,
+    //     p.token_map_d,
+    //     overlap_factor,
+    //     p.buffer_d + 3, // starting address of token count
+    //     p.inverted_index_d);
 
-//     stats.indexed_entries = p.buffer[1];
-//     checkCudaErrors(cudaMalloc(&p.inverted_index_d, BYTES_INDEX(stats.indexed_entries)));
-
-//     make_index<<<config.make_index.grid, config.make_index.block>>>(
-//         p.records_d,
-//         cardinality,
-//         p.token_map_d,
-//         overlap_factor,
-//         p.buffer_d + 3, // starting address of token count
-//         p.inverted_index_d);
-
-//     checkCudaErrors(cudaDeviceSynchronize());
-// }
+    // checkCudaErrors(cudaDeviceSynchronize());
+}
 
 // static void filtering(
 //     ssjoin_stats &stats,
@@ -254,6 +256,7 @@ static void host_to_device(joinstate_t &state, input_info &info)
 ssjoin_stats run_join(input_info info)
 {
     joinstate_t state;
+    state.config = get_config();
 
     {
         auto start{NOW()};
@@ -273,11 +276,11 @@ ssjoin_stats run_join(input_info info)
         state.stats.host2device_ms = TIME_MS(NOW() - start);
     }
 
-    // {
-    //     auto start{NOW()};
-    //     indexing(stats, config, info.cardinality, p, overlap_factor);
-    //     stats.indexing_ms = TIME_MS(NOW() - start);
-    // }
+    {
+        auto start{NOW()};
+        indexing(state, info);
+        state.stats.indexing_ms = TIME_MS(NOW() - start);
+    }
 
     // {
     //     checkCudaErrors(cudaMemset(p.buffer_d, 0, BYTES_R(2)));
