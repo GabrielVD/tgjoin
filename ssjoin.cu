@@ -21,6 +21,7 @@ struct pointers_t
     record_t *record_map_d;
     record_t *buffer_d;
     record_t *token_map_d;
+    index_record *index_d;
 };
 
 struct streams_t
@@ -114,12 +115,12 @@ static void map_records_async(
     const input_info &info,
     cudaStream_t stream)
 {
-    record_t token_start = info.cardinality + 2;
+    record_t token_start = info.cardinality + 3;
     record_map[0] = token_start;
     record_t size_index{1};
     for (int i = 1; i <= info.cardinality; ++i)
     {
-        const auto step{state.ptr.buffer[size_index] + 2};
+        const record_t step{state.ptr.buffer[size_index] + 2};
         token_start += step;
         size_index += step;
         record_map[i] = token_start;
@@ -183,18 +184,20 @@ static void indexing(joinstate_t &state, const input_info &info)
         state.ptr.buffer_d,
         state.overlap_factor);
 
-    // copy [token_max]
+    // copy [token_max, token_count]
     checkCudaErrors(
         cudaMemcpyAsync(
             state.ptr.buffer,
             state.ptr.buffer_d,
-            BYTES_R(1),
+            BYTES_R(2),
             cudaMemcpyDeviceToHost));
     checkCudaErrors(cudaDeviceSynchronize());
 
     state.stats.token_map_limit = state.ptr.buffer[0] + 1;
+    state.stats.indexed_entries = state.ptr.buffer[1];
+
     prefix_sum(
-        state.ptr.buffer_d + 1,
+        state.ptr.buffer_d + 2,
         state.stats.token_map_limit + 1,
         state.ptr.token_map_d);
 

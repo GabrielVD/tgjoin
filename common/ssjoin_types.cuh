@@ -10,7 +10,7 @@ typedef uint8_t overlap_t; // overlap count
 
 struct index_record
 {
-    record_t id;
+    record_t key;
     record_t size;
     record_t remaining_tokens;
 };
