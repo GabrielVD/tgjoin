@@ -7,12 +7,12 @@
 #include <algorithm>
 #include <similarity.cuh>
 
-// struct kernel_config
-// {
-//     launch_params count_tokens;
-//     launch_params make_index;
-//     launch_params filter;
-// };
+struct kernel_config
+{
+    launch_params count_tokens;
+    launch_params make_index;
+    launch_params filter;
+};
 
 struct pointers_t
 {
@@ -30,6 +30,8 @@ struct joinstate_t
     pointers_t ptr;
     ssjoin_stats stats;
     streams_t stream;
+    kernel_config config;
+    float overlap_factor{.0f};
 };
 
 // struct pointers
@@ -109,11 +111,15 @@ static void map_records_async(
     const input_info &info,
     cudaStream_t stream)
 {
-    record_t record_index{1};
-    for (int i = 0; i < info.cardinality; i++)
+    record_t token_start = info.cardinality + 2;
+    record_map[0] = token_start;
+    record_t size_index{1};
+    for (int i = 1; i <= info.cardinality; ++i)
     {
-        record_map[i] = record_index;
-        record_index += state.ptr.buffer[record_index] + 2;
+        const auto step{state.ptr.buffer[size_index] + 2};
+        token_start += step;
+        size_index += step;
+        record_map[i] = token_start;
     }
 
     checkCudaErrors(cudaMemcpyAsync(
@@ -126,34 +132,39 @@ static void map_records_async(
 
 static void host_to_device(joinstate_t &state, input_info &info)
 {
+    // pool layout
+    // [record_map; dataset; buffer; token_map; inverted_index; overlap_matrix]
     state.stats.pool_size = pool_size(info);
     checkCudaErrors(cudaMalloc(&state.ptr.pool_d, state.stats.pool_size));
 
-    size_t input_bytes = BYTES_R(info.datacount);
+    state.ptr.dataset_d = (record_t*)(state.ptr.pool_d) + (info.cardinality + 1);
     checkCudaErrors(cudaMemcpyAsync(
-        state.ptr.pool_d,
+        state.ptr.dataset_d,
         state.ptr.buffer,
-        input_bytes,
+        BYTES_R(info.datacount),
         cudaMemcpyHostToDevice,
         state.stream.a));
 
-    state.ptr.record_map_d = (record_t*)(state.ptr.pool_d + input_bytes);
-    state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
-    state.ptr.buffer_d = state.ptr.record_map_d + info.cardinality;
+    state.ptr.buffer_d = state.ptr.dataset_d + info.datacount;
 
-    const size_t cardinality_bytes = BYTES_R(info.cardinality);
+    // zero out a region of size (token_count + 1)
     checkCudaErrors(cudaMemsetAsync(
-        state.ptr.buffer_d,
+        state.ptr.buffer_d + 1,
         0,
-        input_bytes - 2 * cardinality_bytes,
+        BYTES_R(info.datacount - 2 * info.cardinality + 1),
         state.stream.b));
 
-    record_t *record_map = (record_t *)malloc(cardinality_bytes);
-    map_records_async(record_map, cardinality_bytes, state, info, state.stream.a);
+    record_t *record_map;
+    {
+        const size_t size = BYTES_R(info.cardinality + 1);
+        record_map = (record_t *)malloc(size);
+        state.ptr.record_map_d = (record_t*)state.ptr.pool_d;
+        map_records_async(record_map, size, state, info, state.stream.a);
+    }
     
-    info.overlap_factor = OVERLAP_FAC(info.threshold);
+    state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
+    state.overlap_factor = OVERLAP_FAC(info.threshold);
 
-    state.ptr.dataset_d = (record_t*)state.ptr.pool_d;
     checkCudaErrors(cudaDeviceSynchronize());
     free(record_map);
 }
@@ -261,16 +272,6 @@ ssjoin_stats run_join(input_info info)
         host_to_device(state, info);
         state.stats.host2device_ms = TIME_MS(NOW() - start);
     }
-
-    // kernel_config config{get_config()};
-    // pointers p;
-    // float overlap_factor;
-
-    // {
-    //     auto start{NOW()};
-    //     host_to_device(input, info, p, overlap_factor);
-    //     stats.host2device_ms = TIME_MS(NOW() - start);
-    // }
 
     // {
     //     auto start{NOW()};
