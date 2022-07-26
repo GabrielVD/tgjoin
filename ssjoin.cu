@@ -138,28 +138,28 @@ static void host_to_device(joinstate_t &state, input_info &info)
     {
         state.ptr.record_map_d = (record_t*)state.ptr.pool_d;
         record_t *dataset_d = state.ptr.record_map_d + (info.cardinality + 1);
+        state.ptr.buffer_d = aligned_up<record_t, 16>(dataset_d + info.datacount);
+        state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
+
+        checkCudaErrors(cudaMemsetAsync(
+            state.ptr.buffer_d,
+            0,
+            byte_diff(state.ptr.pool_limit_d, state.ptr.buffer_d),
+            state.stream.a));
+
         checkCudaErrors(cudaMemcpyAsync(
             dataset_d,
             state.ptr.buffer,
             BYTES_R(info.datacount),
             cudaMemcpyHostToDevice,
-            state.stream.a));
-
-        state.ptr.buffer_d = aligned_up<record_t, 16>(dataset_d + info.datacount);
+            state.stream.b));
     }
-
-    state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
-    checkCudaErrors(cudaMemsetAsync(
-        state.ptr.buffer_d,
-        0,
-        byte_diff(state.ptr.pool_limit_d, state.ptr.buffer_d),
-        state.stream.b));
 
     record_t *record_map;
     {
         const size_t size = BYTES_R(info.cardinality + 1);
         record_map = (record_t *)malloc(size);
-        map_records_async(record_map, size, state, info, state.stream.a);
+        map_records_async(record_map, size, state, info, state.stream.b);
     }
     
     state.ptr.token_map_d = aligned_up<record_t, 16>(state.ptr.buffer_d + info.datacount);
@@ -169,7 +169,7 @@ static void host_to_device(joinstate_t &state, input_info &info)
     free(record_map);
 }
 
-static void indexing(joinstate_t &state, const input_info &info)
+static void counting(joinstate_t &state, const input_info &info)
 {
     count_tokens<<<state.config.count_tokens.grid, state.config.count_tokens.block>>>(
         state.ptr.record_map_d,
@@ -188,6 +188,11 @@ static void indexing(joinstate_t &state, const input_info &info)
 
     state.stats.token_map_limit = state.ptr.buffer[0] + 1;
     state.stats.indexed_entries = state.ptr.buffer[1];
+}
+
+static void indexing(joinstate_t &state, const input_info &info)
+{
+    counting(state, info);
 
     {
         const auto token_map_datacount = state.stats.token_map_limit + 1;
@@ -195,25 +200,25 @@ static void indexing(joinstate_t &state, const input_info &info)
         state.ptr.index_d = (index_record*)aligned_up<record_t, 16>(
             state.ptr.token_map_d + token_map_datacount);
 
-        state.ptr.overlap_matrix_d = (overlap_t*)aligned_up<index_record, 16>(
-            state.ptr.index_d + state.stats.indexed_entries);
-
-        state.overlap_capacity = byte_diff(state.ptr.pool_limit_d, state.ptr.overlap_matrix_d);
-        state.overlap_capacity /= sizeof(overlap_t);
-
         prefix_sum(
             state.ptr.buffer_d + 2, // starting address of token count prefixed with a 0
             token_map_datacount,
             state.ptr.token_map_d);
     }
 
-    make_index<<<state.config.make_index.grid, state.config.make_index.block, 0, state.stream.b>>>(
+    make_index<<<state.config.make_index.grid, state.config.make_index.block>>>(
         state.ptr.record_map_d,
         info.cardinality,
         state.ptr.token_map_d,
         state.overlap_factor,
         state.ptr.buffer_d + 3, // starting address of token count
         state.ptr.index_d);
+
+    state.ptr.overlap_matrix_d = (overlap_t*)aligned_up<index_record, 16>(
+        state.ptr.index_d + state.stats.indexed_entries);
+
+    state.overlap_capacity = byte_diff(state.ptr.pool_limit_d, state.ptr.overlap_matrix_d);
+    state.overlap_capacity /= sizeof(overlap_t);
 
     checkCudaErrors(cudaDeviceSynchronize());
 }
