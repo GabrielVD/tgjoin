@@ -19,6 +19,11 @@ inline T *aligned_up(T *ptr)
     return (T*)(((uintptr_t)(ptr) + (N - 1)) & -N);
 }
 
+inline size_t byte_diff(void *high, void *low)
+{
+    return (byte_t*)high - (byte_t*)low;
+}
+
 __host__ __device__ inline size_t tri_rowstart(size_t i)
 {
     return (i * (i - 1)) / 2;

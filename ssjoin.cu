@@ -33,6 +33,7 @@ struct streams_t
 struct joinstate_t
 {
     pointers_t ptr;
+    size_t overlap_capacity;
     ssjoin_stats stats;
     streams_t stream;
     kernel_config config;
@@ -147,11 +148,11 @@ static void host_to_device(joinstate_t &state, input_info &info)
         state.ptr.buffer_d = aligned_up<record_t, 16>(dataset_d + info.datacount);
     }
 
-    // zero out a region of size (token_count + 2)
+    state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
     checkCudaErrors(cudaMemsetAsync(
         state.ptr.buffer_d,
         0,
-        BYTES_R(info.datacount - 2 * info.cardinality + 2),
+        byte_diff(state.ptr.pool_limit_d, state.ptr.buffer_d),
         state.stream.b));
 
     record_t *record_map;
@@ -161,7 +162,6 @@ static void host_to_device(joinstate_t &state, input_info &info)
         map_records_async(record_map, size, state, info, state.stream.a);
     }
     
-    state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
     state.ptr.token_map_d = aligned_up<record_t, 16>(state.ptr.buffer_d + info.datacount);
     state.overlap_factor = OVERLAP_FAC(info.threshold);
 
@@ -198,13 +198,16 @@ static void indexing(joinstate_t &state, const input_info &info)
         state.ptr.overlap_matrix_d = (overlap_t*)aligned_up<index_record, 16>(
             state.ptr.index_d + state.stats.indexed_entries);
 
+        state.overlap_capacity = byte_diff(state.ptr.pool_limit_d, state.ptr.overlap_matrix_d);
+        state.overlap_capacity /= sizeof(overlap_t);
+
         prefix_sum(
             state.ptr.buffer_d + 2, // starting address of token count prefixed with a 0
             token_map_datacount,
             state.ptr.token_map_d);
     }
 
-    make_index<<<state.config.make_index.grid, state.config.make_index.block>>>(
+    make_index<<<state.config.make_index.grid, state.config.make_index.block, 0, state.stream.b>>>(
         state.ptr.record_map_d,
         info.cardinality,
         state.ptr.token_map_d,
@@ -289,15 +292,13 @@ ssjoin_stats run_join(input_info info)
     }
 
     // {
-    //     checkCudaErrors(cudaMemset(p.buffer_d, 0, BYTES_R(2)));
     //     auto start{NOW()};
     //     filtering(stats, config, info, p, overlap_factor);
     //     stats.filtering_ms = TIME_MS(NOW() - start);
-    //     checkCudaErrors(cudaMemcpy(p.buffer, p.buffer_d, BYTES_R(2), cudaMemcpyDeviceToHost));
-    //     stats.token_probes = p.buffer[0];
-    //     stats.index_probes = p.buffer[1];
     // }
     
+    checkCudaErrors(cudaStreamDestroy(state.stream.a));
+    checkCudaErrors(cudaStreamDestroy(state.stream.b));
     checkCudaErrors(cudaFree(state.ptr.pool_d));
     checkCudaErrors(cudaFreeHost(state.ptr.buffer));
     state.stats.status = ssjoin_status::SUCCESS;
