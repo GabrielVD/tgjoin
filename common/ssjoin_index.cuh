@@ -14,10 +14,10 @@ __global__ void count_tokens(
     float overlap_factor);
 
 __global__ void make_index(
-    const record_t *records_d,
+    const record_t *record_map_d,
     const record_t cardinality,
     const record_t *token_map_d,
-    const float overlap_factor,
+    float overlap_factor,
     record_t *count_d,
     index_record *inverted_index_d);
 

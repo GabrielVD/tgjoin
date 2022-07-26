@@ -33,7 +33,7 @@ __global__ void count_tokens(
 }
 
 __global__ void make_index(
-    const record_t *records_d,
+    const record_t *record_map_d,
     const record_t cardinality,
     const record_t *token_map_d,
     const float overlap_factor,
@@ -42,18 +42,18 @@ __global__ void make_index(
 {
     const record_t stride = STRIDE();
     index_record record;
-    for (record.id = IDX(); record.id < cardinality; record.id += stride)
+    for (record.key = IDX(); record.key < cardinality; record.key += stride)
     {
-        auto start{records_d[record.id]};
-        record.size = records_d[record.id + 1] - start;
+        auto start{record_map_d[record.key]};
+        record.size = record_map_d[record.key + 1] - 2 - start;
+        record.remaining_tokens = record.size;
         const auto end{start + index_prefix_size_d(record.size, overlap_factor)};
         
-        while (start < end)
+        for (; start < end; ++start)
         {
-            const auto token{records_d[start]};
-            ++start;
-            record.remaining_tokens = record.size - start;
-            const auto head{token_map_d[token] + atomicSub(count_d + token, 1)};
+            const auto token{record_map_d[start]};
+            --record.remaining_tokens;
+            const auto head{token_map_d[token] + atomicSub(count_d + token, 1) - 1};
             inverted_index_d[head] = record;
         }
     }

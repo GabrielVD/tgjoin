@@ -22,6 +22,7 @@ struct pointers_t
     record_t *buffer_d;
     record_t *token_map_d;
     index_record *index_d;
+    overlap_t *overlap_matrix_d;
 };
 
 struct streams_t
@@ -38,14 +39,6 @@ struct joinstate_t
     float overlap_factor{.0f};
 };
 
-// struct pointers
-// {
-//     record_t *buffer, *buffer_d, *records_d, *token_map_d;
-//     index_record *inverted_index_d;
-//     uint8_t *overlap_matrix_d;
-//     size_t buffer_size;
-// };
-
 static kernel_config get_config()
 {
     kernel_config config;
@@ -55,10 +48,10 @@ static kernel_config get_config()
         &config.count_tokens.block,
         count_tokens));
 
-    // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-    //     &config.make_index.grid,
-    //     &config.make_index.block,
-    //     make_index));
+    checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
+        &config.make_index.grid,
+        &config.make_index.block,
+        make_index));
 
     // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
     //     &config.filter.grid,
@@ -151,7 +144,7 @@ static void host_to_device(joinstate_t &state, input_info &info)
             cudaMemcpyHostToDevice,
             state.stream.a));
 
-        state.ptr.buffer_d = dataset_d + info.datacount;
+        state.ptr.buffer_d = aligned_up<record_t, 16>(dataset_d + info.datacount);
     }
 
     // zero out a region of size (token_count + 2)
@@ -169,7 +162,7 @@ static void host_to_device(joinstate_t &state, input_info &info)
     }
     
     state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
-    state.ptr.token_map_d = state.ptr.buffer_d + info.datacount;
+    state.ptr.token_map_d = aligned_up<record_t, 16>(state.ptr.buffer_d + info.datacount);
     state.overlap_factor = OVERLAP_FAC(info.threshold);
 
     checkCudaErrors(cudaDeviceSynchronize());
@@ -196,20 +189,30 @@ static void indexing(joinstate_t &state, const input_info &info)
     state.stats.token_map_limit = state.ptr.buffer[0] + 1;
     state.stats.indexed_entries = state.ptr.buffer[1];
 
-    prefix_sum(
-        state.ptr.buffer_d + 2,
-        state.stats.token_map_limit + 1,
-        state.ptr.token_map_d);
+    {
+        const auto token_map_datacount = state.stats.token_map_limit + 1;
 
-    // make_index<<<config.make_index.grid, config.make_index.block>>>(
-    //     p.records_d,
-    //     cardinality,
-    //     p.token_map_d,
-    //     overlap_factor,
-    //     p.buffer_d + 3, // starting address of token count
-    //     p.inverted_index_d);
+        state.ptr.index_d = (index_record*)aligned_up<record_t, 16>(
+            state.ptr.token_map_d + token_map_datacount);
 
-    // checkCudaErrors(cudaDeviceSynchronize());
+        state.ptr.overlap_matrix_d = (overlap_t*)aligned_up<index_record, 16>(
+            state.ptr.index_d + state.stats.indexed_entries);
+
+        prefix_sum(
+            state.ptr.buffer_d + 2, // starting address of token count prefixed with a 0
+            token_map_datacount,
+            state.ptr.token_map_d);
+    }
+
+    make_index<<<state.config.make_index.grid, state.config.make_index.block>>>(
+        state.ptr.record_map_d,
+        info.cardinality,
+        state.ptr.token_map_d,
+        state.overlap_factor,
+        state.ptr.buffer_d + 3, // starting address of token count
+        state.ptr.index_d);
+
+    checkCudaErrors(cudaDeviceSynchronize());
 }
 
 // static void filtering(

@@ -8,10 +8,16 @@
 #include <cmath>
 
 #define BYTES_R(n) ((n) * sizeof(record_t))
-#define BYTES_O(n) ((n) * sizeof(overlap_t))
 #define BYTES_I(n) ((n) * sizeof(index_record))
+#define BYTES_O(n) ((n) * sizeof(overlap_t))
 
 typedef unsigned char byte_t;
+
+template<typename T, uintptr_t N>
+inline T *aligned_up(T *ptr)
+{
+    return (T*)(((uintptr_t)(ptr) + (N - 1)) & -N);
+}
 
 __host__ __device__ inline size_t tri_rowstart(size_t i)
 {
