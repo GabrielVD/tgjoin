@@ -13,7 +13,8 @@ int main(int argc, char **argv)
         exit(EXIT_WAIVED);
     }
 
-    info.mem_min = INT_ARG("mem") * 1000000;
+    info.mem_min = INT_ARG("mem");
+    info.mem_min *= 1000000;
     if (info.mem_min == 0) { info.mem_min = 100000000; }
 
     fprintf(stderr,

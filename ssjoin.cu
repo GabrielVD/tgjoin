@@ -54,10 +54,10 @@ static kernel_config get_config()
         &config.make_index.block,
         make_index));
 
-    // checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
-    //     &config.filter.grid,
-    //     &config.filter.block,
-    //     filter));
+    checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
+        &config.filter.grid,
+        &config.filter.block,
+        filter));
 
     return config;
 }
@@ -223,49 +223,41 @@ static void indexing(joinstate_t &state, const input_info &info)
     checkCudaErrors(cudaDeviceSynchronize());
 }
 
-// static void filtering(
-//     ssjoin_stats &stats,
-//     const kernel_config &config,
-//     const input_info &info,
-//     pointers &p,
-//     const float overlap_factor)
-// {
-//     checkCudaErrors(cudaMemGetInfo(&stats.matrix_bytesize, NULL));
-//     record_t id_limit = tri_maxfit((stats.matrix_bytesize - info.mem_min)
-//                                 / sizeof(*p.overlap_matrix_d));
-//     id_limit = std::min(id_limit, info.cardinality);
-//     stats.matrix_size = tri_rowstart(id_limit);
-//     stats.matrix_bytesize = stats.matrix_size * sizeof(*p.overlap_matrix_d);
-//     checkCudaErrors(cudaMalloc(&p.overlap_matrix_d, stats.matrix_bytesize));
+static void filtering(joinstate_t &state, const input_info &info)
+{
+    record_t key_limit = tri_maxfit(state.overlap_capacity);
+    key_limit = std::min(key_limit, info.cardinality);
 
-//     record_t id_start{1};
-//     auto dirty_bytes{stats.matrix_bytesize};
-//     auto *matrix_tip_d{p.overlap_matrix_d - tri_rowstart(id_start)};
-//     do
-//     {
-//         checkCudaErrors(cudaMemsetAsync(p.overlap_matrix_d, 0, dirty_bytes));
-//         filter<<<config.filter.grid, config.filter.block>>>(
-//             p.records_d,
-//             id_start,
-//             id_limit,
-//             p.token_map_d,
-//             stats.token_map_limit,
-//             p.inverted_index_d,
-//             info.threshold,
-//             overlap_factor,
-//             matrix_tip_d,
-//             p.buffer_d);
+    record_t key_start = 1;
+    size_t overlap_offset = 0;
+    do
+    {
+        filter<<<state.config.filter.grid, state.config.filter.block>>>(
+            state.ptr.record_map_d,
+            key_start,
+            key_limit,
+            state.ptr.token_map_d,
+            state.stats.token_map_limit,
+            state.ptr.index_d,
+            info.threshold,
+            state.overlap_factor,
+            state.ptr.overlap_matrix_d,
+            overlap_offset);
 
-//         ++stats.iterations;
-//         id_start = id_limit;
-//         id_limit = tri_maxfit(stats.matrix_size + tri_rowstart(id_start));
-//         id_limit = std::min(id_limit, info.cardinality);
-//         matrix_tip_d = p.overlap_matrix_d - tri_rowstart(id_start);
-//         dirty_bytes = ((matrix_tip_d + tri_rowstart(id_limit)) - p.overlap_matrix_d)
-//             * sizeof(*p.overlap_matrix_d);
-//         checkCudaErrors(cudaDeviceSynchronize());
-//     } while (id_start < info.cardinality);
-// }
+        ++state.stats.iterations;
+        key_start = key_limit;
+        overlap_offset = tri_rowstart(key_start);
+        key_limit = tri_maxfit(state.overlap_capacity + overlap_offset);
+        key_limit = std::min(key_limit, info.cardinality);
+
+        {
+            //size_t dirty_bytes = tri_rowstart(key_limit + 1) - overlap_offset;
+            checkCudaErrors(cudaMemsetAsync(state.ptr.overlap_matrix_d, 0,
+                BYTES_O(state.overlap_capacity)));
+        }
+        checkCudaErrors(cudaDeviceSynchronize());
+    } while (key_start < info.cardinality);
+}
 
 ssjoin_stats run_join(input_info info)
 {
@@ -296,11 +288,11 @@ ssjoin_stats run_join(input_info info)
         state.stats.indexing_ms = TIME_MS(NOW() - start);
     }
 
-    // {
-    //     auto start{NOW()};
-    //     filtering(stats, config, info, p, overlap_factor);
-    //     stats.filtering_ms = TIME_MS(NOW() - start);
-    // }
+    {
+        auto start{NOW()};
+        filtering(state, info);
+        state.stats.filtering_ms = TIME_MS(NOW() - start);
+    }
     
     checkCudaErrors(cudaStreamDestroy(state.stream.a));
     checkCudaErrors(cudaStreamDestroy(state.stream.b));

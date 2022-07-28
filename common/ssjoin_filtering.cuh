@@ -6,15 +6,15 @@
 #include <ssjoin_types.cuh>
 
 __global__ void filter(
-    const record_t *records_d,
-    record_t id_start,
-    const record_t id_limit,
+    const record_t *record_map_d,
+    record_t key_start,
+    record_t key_limit,
     const record_t *token_map_d,
-    const record_t token_limit,
-    const index_record *inverted_index_d,
-    const float threshold,
-    const float overlap_factor,
-    uint8_t *matrix_tip_d,
-    record_t *stats_d); // [token_probes, index_probes]
+    record_t token_limit,
+    const index_record *index_d,
+    float threshold,
+    float overlap_factor,
+    overlap_t *overlap_matrix_d,
+    size_t overlap_offset);
 
 #endif

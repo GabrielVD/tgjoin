@@ -48,7 +48,7 @@ inline T index_prefix_size(T set_size, float overlap_factor)
 template<typename T>
 __device__ inline T prefix_size_d(T set_size, float threshold)
 {
-    return set_size + 1 - MINSIZE(set_size, threshold);
+    return set_size + 1 - MINSIZE_D(set_size, threshold);
 }
 
 #endif

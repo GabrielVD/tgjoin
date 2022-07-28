@@ -13,60 +13,53 @@ __device__ static T min_d(T a, T b)
 }
 
 __global__ void filter(
-    const record_t *records_d,
-    record_t id_start,
-    const record_t id_limit,
+    const record_t *record_map_d,
+    record_t key_start,
+    const record_t key_limit,
     const record_t *token_map_d,
     const record_t token_limit,
-    const index_record *inverted_index_d,
+    const index_record *index_d,
     const float threshold,
     const float overlap_factor,
-    uint8_t *matrix_tip_d,
-    record_t *stats_d) // [token_probes, index_probes]
+    overlap_t *overlap_matrix_d,
+    const size_t overlap_offset)
 {
-    record_t token_probes{0}, index_probes{0};
     const record_t stride = STRIDE();
-    for (id_start += IDX(); id_start < id_limit; id_start += stride)
+    for (key_start += IDX(); key_start < key_limit; key_start += stride)
     {
-        auto *overlap_row{matrix_tip_d + tri_rowstart(id_start)};
-        auto start{records_d[id_start]};
-        const auto record_end{records_d[id_start + 1]};
-        const auto size{record_end - start};
-        const auto minsize{MINSIZE(size, threshold)};
-        auto end{start};
+        auto *overlap_row{overlap_matrix_d + (tri_rowstart(key_start) - overlap_offset)};
+        auto head{record_map_d[key_start]};
+        const auto record_end{record_map_d[key_start + 1] - 2};
+        const auto size{record_end - head};
+        const auto minsize{MINSIZE_D(size, threshold)};
+        const auto prefix_end{head + prefix_size_d(size, threshold)};
+        
+        while (head < prefix_end)
         {
-            const auto prefix{prefix_size(size, threshold)};
-            end += prefix;
-            token_probes += prefix;
-        }
-        while (start < end)
-        {
-            const auto token{records_d[start]};
-            ++start;
+            const auto token{record_map_d[head]};
+            ++head;
             if (token < token_limit)
             {
                 auto candidate{token_map_d[token]};
                 const auto list_end{token_map_d[token + 1]};
-                index_probes += list_end - candidate;
+                
                 for (; candidate < list_end; ++candidate)
                 {
-                    const auto record{inverted_index_d[candidate]};
+                    const auto record{index_d[candidate]};
                     record_t current_overlap;
-                    if (id_start > record.id
+                    if (key_start > record.key
                     && record.size >= minsize
-                    && (current_overlap = overlap_row[record.id]) < LIMIT - 1)
+                    && (current_overlap = overlap_row[record.key]) < LIMIT - 1)
                     {
                         ++current_overlap;
-                        const auto overlap{OVERLAP(size, record.size, overlap_factor)};
+                        const auto overlap{OVERLAP_D(size, record.size, overlap_factor)};
                         const auto max_overlap{current_overlap
-                            + min_d(record.remaining_tokens, record_end - start)};
+                            + min_d(record.remaining_tokens, record_end - head)};
                         current_overlap = max_overlap >= overlap ? current_overlap : LIMIT;
-                        overlap_row[record.id] = current_overlap;
+                        overlap_row[record.key] = current_overlap;
                     }
                 }
             }
         }
     }
-    atomicAdd(stats_d, token_probes);
-    atomicAdd(stats_d + 1, index_probes);
 }
