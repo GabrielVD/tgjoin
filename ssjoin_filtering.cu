@@ -13,12 +13,12 @@ __device__ static T min_d(T a, T b)
 }
 
 __global__ void filter(
-    const record_t *record_map_d,
+    const record_t* __restrict__ record_map_d,
     record_t key_start,
     const record_t key_limit,
-    const record_t *token_map_d,
+    const record_t* __restrict__ token_map_d,
     const record_t token_limit,
-    const index_record *index_d,
+    const index_record* __restrict__ index_d,
     const float threshold,
     const float overlap_factor,
     overlap_t *overlap_matrix_d,
