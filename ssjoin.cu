@@ -2,6 +2,7 @@
 #include <ssjoin_staging.h>
 #include <ssjoin_index.cuh>
 #include <ssjoin_filtering.cuh>
+#include <ssjoin_verify.cuh>
 #include <helper_mem.cuh>
 #include <helper_cuda.h>
 #include <algorithm>
@@ -12,6 +13,7 @@ struct kernel_config
     launch_params count_tokens;
     launch_params make_index;
     launch_params filter;
+    launch_params_smem verify;
 };
 
 struct pointers_t
@@ -44,20 +46,39 @@ static kernel_config get_config()
 {
     kernel_config config;
 
+    checkCudaErrors(cudaFuncSetAttribute(
+        count_tokens,
+        cudaFuncAttributePreferredSharedMemoryCarveout,
+        0));
     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
         &config.count_tokens.grid,
         &config.count_tokens.block,
         count_tokens));
 
+    checkCudaErrors(cudaFuncSetAttribute(
+        make_index,
+        cudaFuncAttributePreferredSharedMemoryCarveout,
+        0));
     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
         &config.make_index.grid,
         &config.make_index.block,
         make_index));
 
+    checkCudaErrors(cudaFuncSetAttribute(
+        filter,
+        cudaFuncAttributePreferredSharedMemoryCarveout,
+        0));
     checkCudaErrors(cudaOccupancyMaxPotentialBlockSize(
         &config.filter.grid,
         &config.filter.block,
         filter));
+
+    checkCudaErrors(cudaOccupancyMaxPotentialBlockSizeVariableSMem(
+        &config.verify.grid,
+        &config.verify.block,
+        verify,
+        verifyBlockSizeToDynamicSMemSize));
+    config.verify.smem = verifyBlockSizeToDynamicSMemSize(config.verify.block);
 
     return config;
 }
@@ -138,7 +159,7 @@ static void host_to_device(joinstate_t &state, input_info &info)
     {
         state.ptr.record_map_d = (record_t*)state.ptr.pool_d;
         record_t *dataset_d = state.ptr.record_map_d + (info.cardinality + 1);
-        state.ptr.buffer_d = aligned_up<record_t, 16>(dataset_d + info.datacount);
+        state.ptr.buffer_d = aligned_up<record_t, CACHE_LINE>(dataset_d + info.datacount);
         state.ptr.pool_limit_d = state.ptr.pool_d + state.stats.pool_size;
 
         checkCudaErrors(cudaMemsetAsync(
@@ -162,7 +183,7 @@ static void host_to_device(joinstate_t &state, input_info &info)
         map_records_async(record_map, size, state, info, state.stream.b);
     }
     
-    state.ptr.token_map_d = aligned_up<record_t, 16>(state.ptr.buffer_d + info.datacount);
+    state.ptr.token_map_d = aligned_up<record_t, CACHE_LINE>(state.ptr.buffer_d + info.datacount);
     state.overlap_factor = OVERLAP_FAC(info.threshold);
 
     checkCudaErrors(cudaDeviceSynchronize());
@@ -197,7 +218,7 @@ static void indexing(joinstate_t &state, const input_info &info)
     {
         const auto token_map_datacount = state.stats.token_map_limit + 1;
 
-        state.ptr.index_d = (index_record*)aligned_up<record_t, 16>(
+        state.ptr.index_d = (index_record*)aligned_up<record_t, CACHE_LINE>(
             state.ptr.token_map_d + token_map_datacount);
 
         prefix_sum(
@@ -214,7 +235,7 @@ static void indexing(joinstate_t &state, const input_info &info)
         state.ptr.buffer_d + 3, // starting address of token count
         state.ptr.index_d);
 
-    state.ptr.overlap_matrix_d = (overlap_t*)aligned_up<index_record, 16>(
+    state.ptr.overlap_matrix_d = (overlap_t*)aligned_up<index_record, CACHE_LINE>(
         state.ptr.index_d + state.stats.indexed_entries);
 
     state.overlap_capacity = byte_diff(state.ptr.pool_limit_d, state.ptr.overlap_matrix_d);
@@ -227,7 +248,7 @@ static void filtering(joinstate_t &state, const input_info &info)
 {
     record_t key_limit = tri_maxfit(state.overlap_capacity);
     key_limit = std::min(key_limit, info.cardinality);
-
+    
     record_t key_start = 1;
     size_t overlap_offset = 0;
     do
@@ -243,6 +264,13 @@ static void filtering(joinstate_t &state, const input_info &info)
             state.overlap_factor,
             state.ptr.overlap_matrix_d,
             overlap_offset);
+        
+        verify<<<
+        state.config.verify.grid,
+        state.config.verify.block,
+        state.config.verify.smem>>>(
+            state.ptr.overlap_matrix_d,
+            tri_rowstart(key_limit) - overlap_offset);
 
         ++state.stats.iterations;
         key_start = key_limit;
@@ -250,11 +278,10 @@ static void filtering(joinstate_t &state, const input_info &info)
         key_limit = tri_maxfit(state.overlap_capacity + overlap_offset);
         key_limit = std::min(key_limit, info.cardinality);
 
-        {
-            //size_t dirty_bytes = tri_rowstart(key_limit + 1) - overlap_offset;
-            checkCudaErrors(cudaMemsetAsync(state.ptr.overlap_matrix_d, 0,
-                BYTES_O(state.overlap_capacity)));
-        }
+        // {
+        //     checkCudaErrors(cudaMemsetAsync(state.ptr.overlap_matrix_d, 0,
+        //         BYTES_O(state.overlap_capacity)));
+        // }
         checkCudaErrors(cudaDeviceSynchronize());
     } while (key_start < info.cardinality);
 }

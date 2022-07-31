@@ -7,6 +7,7 @@
 #include <ssjoin_types.cuh>
 #include <cmath>
 
+#define CACHE_LINE 128
 #define BYTES_R(n) ((n) * sizeof(record_t))
 #define BYTES_I(n) ((n) * sizeof(index_record))
 #define BYTES_O(n) ((n) * sizeof(overlap_t))

@@ -320,6 +320,9 @@ else
 	@echo "Build is ready - all dependencies have been met"
 endif
 
+ssjoin_verify.o:ssjoin_verify.cu
+	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
+
 ssjoin_filtering.o:ssjoin_filtering.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
@@ -338,7 +341,7 @@ ssjoin.o:ssjoin.cu
 main.o:main.cu
 	$(EXEC) $(NVCC) $(INCLUDES) $(ALL_CCFLAGS) $(GENCODE_FLAGS) -o $@ -c $<
 
-tgjoin: main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
+tgjoin: main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o ssjoin_verify.o
 	$(EXEC) $(NVCC) $(ALL_LDFLAGS) $(GENCODE_FLAGS) -o $@ $+ $(LIBRARIES)
 	$(EXEC) mkdir -p ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
 	$(EXEC) cp $@ ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)
@@ -349,7 +352,7 @@ run: build
 testrun: build
 
 clean:
-	rm -f tgjoin main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o
+	rm -f tgjoin main.o ssjoin_staging.o ssjoin.o ssjoin_stats.o ssjoin_index.o ssjoin_filtering.o ssjoin_verify.o
 	rm -rf ./bin/$(TARGET_ARCH)/$(TARGET_OS)/$(BUILD_TYPE)/tgjoin
 
 clobber: clean

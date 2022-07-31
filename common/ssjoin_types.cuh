@@ -15,4 +15,10 @@ struct index_record
     record_t remaining_tokens;
 };
 
+struct record_pair
+{
+    record_t id_high;
+    record_t id_low;
+};
+
 #endif

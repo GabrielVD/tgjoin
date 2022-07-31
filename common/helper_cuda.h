@@ -45,8 +45,15 @@
 
 struct launch_params
 {
-  int grid;
-  int block;
+  int grid = 0;
+  int block = 0;
+};
+
+struct launch_params_smem
+{
+  int grid = 0;
+  int block = 0;
+  int smem = 0;
 };
 
 #ifndef EXIT_WAIVED
