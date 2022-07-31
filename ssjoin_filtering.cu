@@ -21,7 +21,7 @@ __global__ void filter(
     const index_record* __restrict__ index_d,
     const float threshold,
     const float overlap_factor,
-    overlap_t *overlap_matrix_d,
+    overlap_t* __restrict__ overlap_matrix_d,
     const size_t overlap_offset)
 {
     const record_t stride = STRIDE();

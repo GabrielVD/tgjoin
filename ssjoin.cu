@@ -244,9 +244,19 @@ static void indexing(joinstate_t &state, const input_info &info)
     checkCudaErrors(cudaDeviceSynchronize());
 }
 
+static record_t find_key_limit(size_t capacity)
+{
+    return tri_maxfit(OVERLAP_PACK_SIZE * (capacity / OVERLAP_PACK_SIZE));
+}
+
+static int pack_count(record_t key_limit, size_t overlap_offset)
+{
+    return (tri_rowstart(key_limit) - overlap_offset + OVERLAP_PACK_SIZE - 1) / OVERLAP_PACK_SIZE;
+}
+
 static void filtering(joinstate_t &state, const input_info &info)
 {
-    record_t key_limit = tri_maxfit(state.overlap_capacity);
+    record_t key_limit = find_key_limit(state.overlap_capacity);
     key_limit = std::min(key_limit, info.cardinality);
     
     record_t key_start = 1;
@@ -269,19 +279,15 @@ static void filtering(joinstate_t &state, const input_info &info)
         state.config.verify.grid,
         state.config.verify.block,
         state.config.verify.smem>>>(
-            state.ptr.overlap_matrix_d,
-            tri_rowstart(key_limit) - overlap_offset);
+            (overlap_pack*)state.ptr.overlap_matrix_d,
+            pack_count(key_limit, overlap_offset));
 
         ++state.stats.iterations;
         key_start = key_limit;
-        overlap_offset = tri_rowstart(key_start);
-        key_limit = tri_maxfit(state.overlap_capacity + overlap_offset);
+        overlap_offset = tri_rowstart(key_limit);
+        key_limit = find_key_limit(state.overlap_capacity + overlap_offset);
         key_limit = std::min(key_limit, info.cardinality);
-
-        // {
-        //     checkCudaErrors(cudaMemsetAsync(state.ptr.overlap_matrix_d, 0,
-        //         BYTES_O(state.overlap_capacity)));
-        // }
+        
         checkCudaErrors(cudaDeviceSynchronize());
     } while (key_start < info.cardinality);
 }
