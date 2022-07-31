@@ -3,9 +3,9 @@
 #include <similarity.cuh>
 
 __global__ void count_tokens(
-    const record_t *record_map_d,
+    const record_t* __restrict__ record_map_d,
     const record_t cardinality,
-    record_t *count_d,
+    record_t* __restrict__ count_d,
     const float overlap_factor)
 {
     const record_t stride = STRIDE();
@@ -33,12 +33,12 @@ __global__ void count_tokens(
 }
 
 __global__ void make_index(
-    const record_t *record_map_d,
+    const record_t* __restrict__ record_map_d,
     const record_t cardinality,
-    const record_t *token_map_d,
+    const record_t* __restrict__ token_map_d,
     const float overlap_factor,
-    record_t *count_d,
-    index_record *inverted_index_d)
+    record_t* __restrict__ count_d,
+    index_record* __restrict__ inverted_index_d)
 {
     const record_t stride = STRIDE();
     index_record record;
