@@ -205,6 +205,8 @@ static void counting(joinstate_t &state, const input_info &info)
             state.ptr.buffer_d,
             BYTES_R(2),
             cudaMemcpyDeviceToHost));
+
+    checkCudaErrors(cudaMemsetAsync(state.ptr.buffer_d, 0, 2*sizeof(int)));
     checkCudaErrors(cudaDeviceSynchronize());
 
     state.stats.token_map_limit = state.ptr.buffer[0] + 1;
@@ -273,12 +275,14 @@ static void filtering(joinstate_t &state, const input_info &info)
             info.threshold,
             state.overlap_factor,
             state.ptr.overlap_matrix_d,
-            overlap_offset);
+            overlap_offset,
+            (int*)state.ptr.buffer_d);
         
         verify<<<
         state.config.verify.grid,
         state.config.verify.block,
         state.config.verify.smem>>>(
+            ((int*)state.ptr.buffer_d) + 1,
             (overlap_pack*)state.ptr.overlap_matrix_d,
             pack_count(key_limit, overlap_offset));
 
@@ -287,9 +291,18 @@ static void filtering(joinstate_t &state, const input_info &info)
         overlap_offset = tri_rowstart(key_limit);
         key_limit = find_key_limit(state.overlap_capacity + overlap_offset);
         key_limit = std::min(key_limit, info.cardinality);
+    } while (key_start < info.cardinality);
+
+        checkCudaErrors(
+            cudaMemcpyAsync(
+                state.ptr.buffer,
+                state.ptr.buffer_d,
+                2*sizeof(int),
+                cudaMemcpyDeviceToHost));
         
         checkCudaErrors(cudaDeviceSynchronize());
-    } while (key_start < info.cardinality);
+
+        printf("Filtered: %d\nVerified: %d\n", state.ptr.buffer[0], state.ptr.buffer[1]);
 }
 
 ssjoin_stats run_join(input_info info)

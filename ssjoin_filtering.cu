@@ -22,8 +22,10 @@ __global__ void filter(
     const float threshold,
     const float overlap_factor,
     overlap_t* __restrict__ overlap_matrix_d,
-    const size_t overlap_offset)
+    const size_t overlap_offset,
+    int* __restrict__ candidates_d)
 {
+    int candidates = 0;
     const record_t stride = STRIDE();
     for (key_start += IDX(); key_start < key_limit; key_start += stride)
     {
@@ -52,14 +54,17 @@ __global__ void filter(
                     && (current_overlap = overlap_row[record.key]) < LIMIT - 1)
                     {
                         ++current_overlap;
+                        candidates += current_overlap == 1;
                         const auto overlap{OVERLAP_D(size, record.size, overlap_factor)};
                         const auto max_overlap{current_overlap
                             + min_d(record.remaining_tokens, record_end - head)};
                         current_overlap = max_overlap >= overlap ? current_overlap : LIMIT;
+                        candidates -= current_overlap == LIMIT;
                         overlap_row[record.key] = current_overlap;
                     }
                 }
             }
         }
     }
+    atomicAdd(candidates_d, candidates);
 }

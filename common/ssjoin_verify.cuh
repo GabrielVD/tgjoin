@@ -10,6 +10,7 @@
 typedef unsigned long long overlap_pack;
 
 __global__ void verify(
+    int *buffer_d,
     overlap_pack *overlap_pack_d,
     int pack_count);
 

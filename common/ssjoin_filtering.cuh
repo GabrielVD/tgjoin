@@ -15,6 +15,7 @@ __global__ void filter(
     float threshold,
     float overlap_factor,
     overlap_t *overlap_matrix_d,
-    size_t overlap_offset);
+    size_t overlap_offset,
+    int* candidates_d);
 
 #endif

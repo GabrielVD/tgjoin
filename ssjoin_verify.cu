@@ -4,15 +4,16 @@
 #define FILL ((overlap_t)-1)
 
 __global__ void verify(
-    overlap_pack *overlap_pack_d,
+    int* __restrict__ buffer_d,
+    overlap_pack* __restrict__ overlap_pack_d,
     const int pack_count)
 {
     extern __shared__ int shared[];
 
     if (threadIdx.x == 0) { shared[0] = 0; }
 
-    volatile overlap_t overlap;
     const int stride = STRIDE();
+    int candidates = 0;
     for (int idx = IDX(); idx < pack_count; idx += stride)
     {
         __syncthreads();
@@ -22,8 +23,8 @@ __global__ void verify(
         {
             while (pack != 0)
             {
-                overlap = pack & FILL;
-                if (overlap == 0 || overlap != FILL)
+                overlap_t overlap = pack & FILL;
+                if (overlap != 0 && overlap != FILL)
                 {
                     if (atomicAdd(shared, 1) >= blockDim.x) { break; }
                 }
@@ -32,8 +33,14 @@ __global__ void verify(
 
             __syncthreads();
             if (shared[0] < blockDim.x) { break; }
-            if (threadIdx.x == 0) { shared[0] = 0; }
+            __syncthreads();
+            if (threadIdx.x == 0)
+            {
+                candidates += blockDim.x;
+                shared[0] = 0;
+            }
         }
-        
     }
+
+    if (threadIdx.x == 0) { atomicAdd(buffer_d, shared[0] + candidates); }
 }
