@@ -6,17 +6,20 @@
 __global__ void verify(
     int* __restrict__ buffer_d,
     overlap_pack* __restrict__ overlap_pack_d,
-    const int pack_count)
+    const size_t pack_count)
 {
+    // count of elements in buffer
     extern __shared__ int shared[];
+    size_t *buffer = ((size_t*)shared) + 1;
 
     if (threadIdx.x == 0) { shared[0] = 0; }
 
-    const int stride = STRIDE();
+    const size_t stride = STRIDE();
     int candidates = 0;
-    for (int idx = IDX(); idx < pack_count; idx += stride)
+    for (size_t idx = IDX(); idx < pack_count; idx += stride)
     {
         __syncthreads();
+        size_t overlap_index = idx * OVERLAP_PACK_SIZE;
         auto pack = atomicExch(overlap_pack_d + idx, 0);
 
         while (1)
@@ -26,9 +29,12 @@ __global__ void verify(
                 overlap_t overlap = pack & FILL;
                 if (overlap != 0 && overlap != FILL)
                 {
-                    if (atomicAdd(shared, 1) >= blockDim.x) { break; }
+                    int old_count = atomicAdd(shared, 1);
+                    if (old_count >= blockDim.x) { break; }
+                    buffer[old_count] = overlap_index;
                 }
                 pack = pack >> (sizeof(overlap_t) * CHAR_BIT);
+                ++overlap_index;
             }
 
             __syncthreads();

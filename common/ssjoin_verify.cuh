@@ -12,11 +12,12 @@ typedef unsigned long long overlap_pack;
 __global__ void verify(
     int *buffer_d,
     overlap_pack *overlap_pack_d,
-    int pack_count);
+    size_t pack_count);
 
 __host__ __device__ inline int verifyBlockSizeToDynamicSMemSize(int block)
 {
-    return sizeof(int) + block * (4 * sizeof(record_t) + sizeof(overlap_t));
+    const int cell_size = sizeof(size_t) > sizeof(record_pair) ? sizeof(size_t) : sizeof(record_pair);
+    return (block + 1) * cell_size;
 }
 
 #endif

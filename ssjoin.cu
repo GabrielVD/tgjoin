@@ -73,6 +73,7 @@ static kernel_config get_config()
         &config.filter.block,
         filter));
 
+    checkCudaErrors(cudaFuncSetSharedMemConfig(verify, cudaSharedMemBankSizeEightByte));
     checkCudaErrors(cudaOccupancyMaxPotentialBlockSizeVariableSMem(
         &config.verify.grid,
         &config.verify.block,
@@ -251,7 +252,7 @@ static record_t find_key_limit(size_t capacity)
     return tri_maxfit(OVERLAP_PACK_SIZE * (capacity / OVERLAP_PACK_SIZE));
 }
 
-static int pack_count(record_t key_limit, size_t overlap_offset)
+static size_t pack_count(record_t key_limit, size_t overlap_offset)
 {
     return (tri_rowstart(key_limit) - overlap_offset + OVERLAP_PACK_SIZE - 1) / OVERLAP_PACK_SIZE;
 }
