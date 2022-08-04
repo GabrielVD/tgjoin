@@ -10,16 +10,21 @@ __global__ void verify(
 {
     // count of elements in buffer
     extern __shared__ int shared[];
-    size_t *buffer = ((size_t*)shared) + 1;
+    size_t *batch_buffer = (size_t*)(shared + 2);
+    record_pair *out_buffer = (record_pair*)(batch_buffer + blockDim.x);
 
     int candidates = 0;
     const size_t stride = STRIDE();
 
-    if (threadIdx.x == 0) { shared[0] = 0; }
-
+    if (threadIdx.x < 2)
+    {
+        shared[threadIdx.x] = 0;
+    }
     __syncthreads();
+
     for (size_t block = blockIdx.x * blockDim.x; block < pack_count; block += stride)
     {
+        // exchange a pack with zeroed memory
         size_t overlap_index;
         overlap_pack pack = 0;
         {
@@ -31,8 +36,10 @@ __global__ void verify(
             }
         }
 
+        // fully process the packs read
         while (1)
         {
+            // dump pack to shared memory until empty or batch is full
             while (pack != 0)
             {
                 overlap_t overlap = pack & FILL;
@@ -40,23 +47,31 @@ __global__ void verify(
                 {
                     int old_count = atomicAdd(shared, 1);
                     if (old_count >= blockDim.x) { break; }
-                    buffer[old_count] = overlap_index;
+                    batch_buffer[old_count] = overlap_index;
                 }
                 pack = pack >> (sizeof(overlap_t) * CHAR_BIT);
                 ++overlap_index;
             }
 
             __syncthreads();
-            if (shared[0] < blockDim.x) { break; }
+            int batch = shared[0];
             __syncthreads();
+
+            // read next packs if batch is not full and not the last one
+            if (batch < blockDim.x && (block + stride < pack_count || batch == 0))
+            {
+                break;
+            }
+
+            // process current batch
             if (threadIdx.x == 0)
             {
-                candidates += blockDim.x;
+                candidates += blockDim.x < batch ? blockDim.x : batch;
                 shared[0] = 0;
             }
             __syncthreads();
         }
     }
 
-    if (threadIdx.x == 0) { atomicAdd(buffer_d, shared[0] + candidates); }
+    if (threadIdx.x == 0) { atomicAdd(buffer_d, candidates); }
 }
