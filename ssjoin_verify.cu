@@ -1,24 +1,40 @@
 #include <ssjoin_verify.cuh>
 #include <helper_cuda.h>
+#include <helper_mem.cuh>
 
 #define FILL ((overlap_t)-1)
+
+__device__ static record_pair split_index(size_t overlap_index)
+{
+    record_pair pair;
+    pair.id_high = tri_maxfit_d(overlap_index);
+    pair.id_low = tri_rowstart(pair.id_high);
+    
+    while (pair.id_low > overlap_index)
+    {
+        pair.id_low = tri_rowstart(--pair.id_high);
+    }
+    pair.id_low = overlap_index - pair.id_low;
+}
 
 __global__ void verify(
     int* __restrict__ buffer_d,
     overlap_pack* __restrict__ overlap_pack_d,
     const size_t pack_count)
 {
-    // count of elements in buffer
-    extern __shared__ int shared[];
-    size_t *batch_buffer = (size_t*)(shared + 2);
+    extern __shared__ size_t shared[];
+    int *batch_counter = (int*)shared;
+    int *out_counter = (int*)(shared + 1);
+    size_t *batch_buffer = shared + 2;
     record_pair *out_buffer = (record_pair*)(batch_buffer + blockDim.x);
 
     int candidates = 0;
     const size_t stride = STRIDE();
 
-    if (threadIdx.x < 2)
+    if (threadIdx.x == 0)
     {
-        shared[threadIdx.x] = 0;
+        *batch_counter = 0;
+        *out_counter = 0;
     }
     __syncthreads();
 
@@ -45,7 +61,7 @@ __global__ void verify(
                 overlap_t overlap = pack & FILL;
                 if (overlap != 0 && overlap != FILL)
                 {
-                    int old_count = atomicAdd(shared, 1);
+                    int old_count = atomicAdd(batch_counter, 1);
                     if (old_count >= blockDim.x) { break; }
                     batch_buffer[old_count] = overlap_index;
                 }
@@ -54,7 +70,7 @@ __global__ void verify(
             }
 
             __syncthreads();
-            int batch = shared[0];
+            int batch = *batch_counter;
             __syncthreads();
 
             // read next packs if batch is not full and not the last one
@@ -64,10 +80,20 @@ __global__ void verify(
             }
 
             // process current batch
+            {
+                if (threadIdx.x < batch)
+                {
+                    record_pair pair = split_index(batch_buffer[threadIdx.x]);
+                    out_buffer[atomicAdd(out_counter, 1)] = pair;
+                }
+            }
+
+            __syncthreads();
             if (threadIdx.x == 0)
             {
                 candidates += blockDim.x < batch ? blockDim.x : batch;
-                shared[0] = 0;
+                *batch_counter = 0;
+                *out_counter = 0;
             }
             __syncthreads();
         }

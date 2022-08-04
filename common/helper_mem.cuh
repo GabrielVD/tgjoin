@@ -35,4 +35,20 @@ inline size_t tri_maxfit(size_t capacity)
     return std::floor(std::sqrt(2 * capacity + .25) + .5);
 }
 
+__device__ inline size_t tri_maxfit_d(const size_t capacity)
+{
+    double capacity_lf;
+    {
+        unsigned long long capacity_ull{capacity};
+        capacity_lf = __ull2double_ru(capacity_ull);
+    }
+    
+    return
+        __double2ull_rd(
+            __dadd_ru(
+                __dsqrt_ru(
+                    __fma_ru(2.0, capacity_lf, .25)),
+                .5));
+}
+
 #endif

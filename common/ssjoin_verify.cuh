@@ -16,7 +16,7 @@ __global__ void verify(
 
 __host__ __device__ inline int verifyBlockSizeToDynamicSMemSize(int block)
 {
-    return 2 * sizeof(int) + block * (sizeof(size_t) + sizeof(record_pair));
+    return 2 * sizeof(size_t) + block * (sizeof(size_t) + sizeof(record_pair));
 }
 
 #endif
