@@ -7,6 +7,7 @@
 #include <helper_cuda.h>
 #include <algorithm>
 #include <similarity.cuh>
+#include <vector>
 
 struct kernel_config
 {
@@ -34,6 +35,7 @@ struct streams_t
 
 struct joinstate_t
 {
+    std::vector<record_pair> output;
     pointers_t ptr;
     size_t overlap_capacity;
     ssjoin_stats stats;
@@ -207,7 +209,7 @@ static void counting(joinstate_t &state, const input_info &info)
             BYTES_R(2),
             cudaMemcpyDeviceToHost));
 
-    checkCudaErrors(cudaMemsetAsync(state.ptr.buffer_d, 0, 2*sizeof(int)));
+    checkCudaErrors(cudaMemsetAsync(state.ptr.buffer_d, 0, 3 * sizeof(int)));
     checkCudaErrors(cudaDeviceSynchronize());
 
     state.stats.token_map_limit = state.ptr.buffer[0] + 1;
@@ -257,48 +259,97 @@ static size_t pack_count(record_t key_limit, size_t overlap_offset)
     return (tri_rowstart(key_limit) - overlap_offset + OVERLAP_PACK_SIZE - 1) / OVERLAP_PACK_SIZE;
 }
 
+static void run_filter(
+    record_t key_start,
+    record_t key_limit,
+    size_t overlap_offset,
+    joinstate_t &state,
+    const input_info &info,
+    cudaStream_t stream)
+{
+    filter<<<
+    state.config.filter.grid,
+    state.config.filter.block,
+    0,
+    stream>>>(
+        state.ptr.record_map_d,
+        key_start,
+        key_limit,
+        state.ptr.token_map_d,
+        state.stats.token_map_limit,
+        state.ptr.index_d,
+        info.threshold,
+        state.overlap_factor,
+        state.ptr.overlap_matrix_d,
+        overlap_offset,
+        (int*)state.ptr.buffer_d);
+}
+
+static void run_verify(
+    record_pair *out_d,
+    int *out_count_d,
+    size_t pack_count,
+    joinstate_t &state)
+{
+    verify<<<
+    state.config.verify.grid,
+    state.config.verify.block,
+    state.config.verify.smem>>>(
+        state.ptr.record_map_d,
+        out_d,
+        out_count_d,
+        ((int*)state.ptr.buffer_d) + 1,
+        (overlap_pack*)state.ptr.overlap_matrix_d,
+        pack_count);
+}
+
 static void filtering(joinstate_t &state, const input_info &info)
 {
     record_t key_limit = find_key_limit(state.overlap_capacity);
     key_limit = std::min(key_limit, info.cardinality);
     
+    record_pair *out_d = ((record_pair*)state.ptr.buffer_d) + 2;
+    int *out_count_d = ((int*)state.ptr.buffer_d) + 2;
     record_t key_start = 1;
     size_t overlap_offset = 0;
+
+    run_filter(key_start, key_limit, overlap_offset, state, info, state.stream.a);
     do
     {
-        filter<<<
-        state.config.filter.grid,
-        state.config.filter.block,
-        0,
-        state.stream.a>>>(
-            state.ptr.record_map_d,
-            key_start,
-            key_limit,
-            state.ptr.token_map_d,
-            state.stats.token_map_limit,
-            state.ptr.index_d,
-            info.threshold,
-            state.overlap_factor,
-            state.ptr.overlap_matrix_d,
-            overlap_offset,
-            (int*)state.ptr.buffer_d);
-        
-        verify<<<
-        state.config.verify.grid,
-        state.config.verify.block,
-        state.config.verify.smem>>>(
-            state.ptr.record_map_d,
-            ((record_pair*)state.ptr.buffer_d) + 2,
-            ((int*)state.ptr.buffer_d) + 2,
-            ((int*)state.ptr.buffer_d) + 1,
-            (overlap_pack*)state.ptr.overlap_matrix_d,
-            pack_count(key_limit, overlap_offset));
+        run_verify(out_d, out_count_d, pack_count(key_limit, overlap_offset), state);
 
         ++state.stats.iterations;
         key_start = key_limit;
-        overlap_offset = tri_rowstart(key_limit);
-        key_limit = find_key_limit(state.overlap_capacity + overlap_offset);
-        key_limit = std::min(key_limit, info.cardinality);
+
+        if (key_start < info.cardinality)
+        {
+            overlap_offset = tri_rowstart(key_limit);
+            key_limit = find_key_limit(state.overlap_capacity + overlap_offset);
+            key_limit = std::min(key_limit, info.cardinality);
+            run_filter(key_start, key_limit, overlap_offset, state, info, state.stream.a);
+        }
+
+        int output_count;
+
+        checkCudaErrors(
+            cudaMemcpyAsync(
+                &output_count,
+                out_count_d,
+                sizeof(int),
+                cudaMemcpyDeviceToHost,
+                state.stream.b));
+        checkCudaErrors(cudaStreamSynchronize(state.stream.b));
+
+        checkCudaErrors(
+            cudaMemcpyAsync(
+                state.ptr.buffer,
+                out_d,
+                BYTES_P(output_count),
+                cudaMemcpyDeviceToHost,
+                state.stream.b));
+        checkCudaErrors(cudaMemsetAsync(out_count_d, 0, sizeof(int), state.stream.b));
+        // printf("Found %d\n", output_count);
+
     } while (key_start < info.cardinality);
 
     checkCudaErrors(
