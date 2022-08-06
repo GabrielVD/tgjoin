@@ -266,7 +266,11 @@ static void filtering(joinstate_t &state, const input_info &info)
     size_t overlap_offset = 0;
     do
     {
-        filter<<<state.config.filter.grid, state.config.filter.block>>>(
+        filter<<<
+        state.config.filter.grid,
+        state.config.filter.block,
+        0,
+        state.stream.a>>>(
             state.ptr.record_map_d,
             key_start,
             key_limit,
@@ -283,6 +287,9 @@ static void filtering(joinstate_t &state, const input_info &info)
         state.config.verify.grid,
         state.config.verify.block,
         state.config.verify.smem>>>(
+            state.ptr.record_map_d,
+            ((record_pair*)state.ptr.buffer_d) + 2,
+            ((int*)state.ptr.buffer_d) + 2,
             ((int*)state.ptr.buffer_d) + 1,
             (overlap_pack*)state.ptr.overlap_matrix_d,
             pack_count(key_limit, overlap_offset));
@@ -294,16 +301,16 @@ static void filtering(joinstate_t &state, const input_info &info)
         key_limit = std::min(key_limit, info.cardinality);
     } while (key_start < info.cardinality);
 
-        checkCudaErrors(
-            cudaMemcpyAsync(
-                state.ptr.buffer,
-                state.ptr.buffer_d,
-                2*sizeof(int),
-                cudaMemcpyDeviceToHost));
-        
-        checkCudaErrors(cudaDeviceSynchronize());
+    checkCudaErrors(
+        cudaMemcpyAsync(
+            state.ptr.buffer,
+            state.ptr.buffer_d,
+            2*sizeof(int),
+            cudaMemcpyDeviceToHost));
+    
+    checkCudaErrors(cudaDeviceSynchronize());
 
-        printf("Filtered: %d\nVerified: %d\n", state.ptr.buffer[0], state.ptr.buffer[1]);
+    printf("Filtered: %d\nVerified: %d\n", state.ptr.buffer[0], state.ptr.buffer[1]);
 }
 
 ssjoin_stats run_join(input_info info)

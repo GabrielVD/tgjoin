@@ -18,7 +18,10 @@ __device__ static record_pair split_index(size_t overlap_index)
 }
 
 __global__ void verify(
-    int* __restrict__ buffer_d,
+    const record_t* __restrict__ record_map_d,
+    record_pair* __restrict__ out_d,
+    int* __restrict__ out_count_d,
+    int* __restrict__ candidates_d,
     overlap_pack* __restrict__ overlap_pack_d,
     const size_t pack_count)
 {
@@ -84,7 +87,26 @@ __global__ void verify(
                 if (threadIdx.x < batch)
                 {
                     record_pair pair = split_index(batch_buffer[threadIdx.x]);
+                    pair.id_low = record_map_d[record_map_d[pair.id_low] - 2];
+                    pair.id_high = record_map_d[record_map_d[pair.id_high] - 2];
                     out_buffer[atomicAdd(out_counter, 1)] = pair;
+                }
+            }
+
+            {
+                __syncthreads();
+                int counter = *out_counter;
+                // reserve output region
+                if (threadIdx.x == 0)
+                {
+                    *batch_counter = atomicAdd(out_count_d, counter);
+                }
+                __syncthreads();
+                int out_start = *batch_counter;
+                // output pairs
+                if (threadIdx.x < counter)
+                {
+                    // out_d[out_start + threadIdx.x] = out_buffer[threadIdx.x];
                 }
             }
 
@@ -99,5 +121,5 @@ __global__ void verify(
         }
     }
 
-    if (threadIdx.x == 0) { atomicAdd(buffer_d, candidates); }
+    if (threadIdx.x == 0) { atomicAdd(candidates_d, candidates); }
 }
