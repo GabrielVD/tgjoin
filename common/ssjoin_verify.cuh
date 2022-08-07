@@ -15,11 +15,12 @@ __global__ void verify(
     int *out_count_d,
     int *candidates_d,
     overlap_pack *overlap_pack_d,
+    size_t overlap_offset,
     size_t pack_count);
 
 __host__ __device__ inline int verifyBlockSizeToDynamicSMemSize(int block)
 {
-    return 2 * sizeof(size_t) + block * (sizeof(size_t) + sizeof(record_pair));
+    return 2 * sizeof(size_t) + block * (sizeof(size_t) + sizeof(record_pair) + sizeof(overlap_t));
 }
 
 #endif

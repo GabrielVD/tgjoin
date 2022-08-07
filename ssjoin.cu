@@ -288,6 +288,7 @@ static void run_filter(
 static void run_verify(
     record_pair *out_d,
     int *out_count_d,
+    size_t overlap_offset,
     size_t pack_count,
     joinstate_t &state)
 {
@@ -300,6 +301,7 @@ static void run_verify(
         out_count_d,
         ((int*)state.ptr.buffer_d) + 1,
         (overlap_pack*)state.ptr.overlap_matrix_d,
+        overlap_offset,
         pack_count);
 }
 
@@ -316,7 +318,12 @@ static void filtering(joinstate_t &state, const input_info &info)
     run_filter(key_start, key_limit, overlap_offset, state, info, state.stream.a);
     do
     {
-        run_verify(out_d, out_count_d, pack_count(key_limit, overlap_offset), state);
+        run_verify(
+            out_d,
+            out_count_d,
+            overlap_offset,
+            pack_count(key_limit, overlap_offset),
+            state);
 
         ++state.stats.iterations;
         key_start = key_limit;
@@ -348,7 +355,12 @@ static void filtering(joinstate_t &state, const input_info &info)
                 cudaMemcpyDeviceToHost,
                 state.stream.b));
         checkCudaErrors(cudaMemsetAsync(out_count_d, 0, sizeof(int), state.stream.b));
-        // printf("Found %d\n", output_count);
+        checkCudaErrors(cudaStreamSynchronize(state.stream.b));
+
+        state.output.insert(
+            state.output.end(),
+            (record_pair*)state.ptr.buffer,
+            ((record_pair*)state.ptr.buffer) + output_count);
 
     } while (key_start < info.cardinality);
 
@@ -397,6 +409,11 @@ ssjoin_stats run_join(input_info info)
         auto start{NOW()};
         filtering(state, info);
         state.stats.filtering_ms = TIME_MS(NOW() - start);
+    }
+
+    for (const auto &pair : state.output)
+    {
+        printf("%d %d\n", pair.id_high, pair.id_low);
     }
     
     checkCudaErrors(cudaStreamDestroy(state.stream.a));

@@ -6,15 +6,15 @@
 
 __device__ static record_pair split_index(size_t overlap_index)
 {
-    record_pair pair;
-    pair.id_high = tri_maxfit_d(overlap_index);
-    pair.id_low = tri_rowstart(pair.id_high);
+    size_t n = tri_maxfit_d(overlap_index);
+    size_t nsum = tri_rowstart(n);
     
-    while (pair.id_low > overlap_index)
-    {
-        pair.id_low = tri_rowstart(--pair.id_high);
-    }
-    pair.id_low = overlap_index - pair.id_low;
+    while (nsum > overlap_index) { nsum = tri_rowstart(--n); }
+
+    record_pair pair;
+    pair.id_high = n;
+    pair.id_low = overlap_index - nsum;
+    return pair;
 }
 
 __global__ void verify(
@@ -23,6 +23,7 @@ __global__ void verify(
     int* __restrict__ out_count_d,
     int* __restrict__ candidates_d,
     overlap_pack* __restrict__ overlap_pack_d,
+    const size_t overlap_offset,
     const size_t pack_count)
 {
     extern __shared__ size_t shared[];
@@ -30,6 +31,7 @@ __global__ void verify(
     int *out_counter = (int*)(shared + 1);
     size_t *batch_buffer = shared + 2;
     record_pair *out_buffer = (record_pair*)(batch_buffer + blockDim.x);
+    overlap_t *overlap_buffer = (overlap_t*)(out_buffer + blockDim.x);
 
     int candidates = 0;
     const size_t stride = STRIDE();
@@ -50,7 +52,7 @@ __global__ void verify(
             size_t idx = block + threadIdx.x;
             if (idx < pack_count)
             {
-                overlap_index = idx * OVERLAP_PACK_SIZE;
+                overlap_index = overlap_offset + idx * OVERLAP_PACK_SIZE;
                 pack = atomicExch(overlap_pack_d + idx, 0);
             }
         }
@@ -67,6 +69,7 @@ __global__ void verify(
                     int old_count = atomicAdd(batch_counter, 1);
                     if (old_count >= blockDim.x) { break; }
                     batch_buffer[old_count] = overlap_index;
+                    overlap_buffer[old_count] = overlap;
                 }
                 pack = pack >> (sizeof(overlap_t) * CHAR_BIT);
                 ++overlap_index;
@@ -89,7 +92,8 @@ __global__ void verify(
                     record_pair pair = split_index(batch_buffer[threadIdx.x]);
                     pair.id_low = record_map_d[record_map_d[pair.id_low] - 2];
                     pair.id_high = record_map_d[record_map_d[pair.id_high] - 2];
-                    out_buffer[atomicAdd(out_counter, 1)] = pair;
+                    overlap_t overlap = overlap_buffer[threadIdx.x];
+                    if (threadIdx.x == 0) { out_buffer[atomicAdd(out_counter, 1)] = pair; }
                 }
             }
 
@@ -106,7 +110,7 @@ __global__ void verify(
                 // output pairs
                 if (threadIdx.x < counter)
                 {
-                    // out_d[out_start + threadIdx.x] = out_buffer[threadIdx.x];
+                    out_d[out_start + threadIdx.x] = out_buffer[threadIdx.x];
                 }
             }
 
