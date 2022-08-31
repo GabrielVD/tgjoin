@@ -15,6 +15,8 @@ __global__ void verify(
     int *out_count_d,
     int *candidates_d,
     overlap_pack *overlap_pack_d,
+    float threshold,
+    float overlap_factor,
     size_t overlap_offset,
     size_t pack_count);
 

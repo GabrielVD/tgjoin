@@ -112,7 +112,7 @@ static size_t pool_size(const input_info &info)
     checkCudaErrors(cudaMemGetInfo(&size, NULL));
     size -= info.mem_min;
 
-    const size_t overlap_size{BYTES_O(tri_rowstart(info.cardinality + 1))};
+    const size_t overlap_size{BYTES_O(tri_rowstart(info.cardinality + 1)) / 16};
     if (overlap_size < size)
     {
         size = std::min(
@@ -290,7 +290,8 @@ static void run_verify(
     int *out_count_d,
     size_t overlap_offset,
     size_t pack_count,
-    joinstate_t &state)
+    joinstate_t &state,
+    const input_info &info)
 {
     verify<<<
     state.config.verify.grid,
@@ -301,6 +302,8 @@ static void run_verify(
         out_count_d,
         ((int*)state.ptr.buffer_d) + 1,
         (overlap_pack*)state.ptr.overlap_matrix_d,
+        info.threshold,
+        state.overlap_factor,
         overlap_offset,
         pack_count);
 }
@@ -323,7 +326,8 @@ static void filtering(joinstate_t &state, const input_info &info)
             out_count_d,
             overlap_offset,
             pack_count(key_limit, overlap_offset),
-            state);
+            state,
+            info);
 
         ++state.stats.iterations;
         key_start = key_limit;

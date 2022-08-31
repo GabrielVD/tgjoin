@@ -1,10 +1,11 @@
 #include <ssjoin_verify.cuh>
 #include <helper_cuda.h>
 #include <helper_mem.cuh>
+#include <similarity.cuh>
 
 #define FILL ((overlap_t)-1)
 
-__device__ static record_pair split_index(size_t overlap_index)
+__device__ __forceinline__ static record_pair split_index(size_t overlap_index)
 {
     size_t n = tri_maxfit_d(overlap_index);
     size_t nsum = tri_rowstart(n);
@@ -17,12 +18,54 @@ __device__ static record_pair split_index(size_t overlap_index)
     return pair;
 }
 
+__device__ __forceinline__ static bool are_sim(
+    record_pair pair,
+    overlap_t overlap,
+    float threshold,
+    float overlap_factor,
+    const record_t *record_map_d)
+{
+    record_t head_low = record_map_d[pair.id_low];
+    record_t limit_low = record_map_d[pair.id_low + 1] - 2;
+
+    record_t head_high = record_map_d[pair.id_high];
+    record_t limit_high = record_map_d[pair.id_high + 1] - 2;
+
+    int overlap_needed;
+    {
+        auto size_low = limit_low - head_low;
+        auto size_high = limit_high - head_high;
+        if (overlap != FILL - 1)
+        {
+            head_low += index_prefix_size_d(size_low, overlap_factor);
+            head_high += prefix_size_d(size_high, threshold);
+        }
+        else { overlap = 0; }
+        overlap_needed = OVERLAP_D(size_low, size_high, overlap_factor) - overlap;
+    }
+
+    while (overlap_needed != 0
+        && head_low != limit_low
+        && head_high != limit_high)
+    {
+        auto token_low = record_map_d[head_low];
+        auto token_high = record_map_d[head_high];
+        overlap_needed -= token_low == token_high;
+        head_low += token_low <= token_high;
+        head_high += token_high <= token_low;
+    }
+
+    return overlap_needed == 0;
+}
+
 __global__ void verify(
     const record_t* __restrict__ record_map_d,
     record_pair* __restrict__ out_d,
     int* __restrict__ out_count_d,
     int* __restrict__ candidates_d,
     overlap_pack* __restrict__ overlap_pack_d,
+    const float threshold,
+    const float overlap_factor,
     const size_t overlap_offset,
     const size_t pack_count)
 {
@@ -90,10 +133,13 @@ __global__ void verify(
                 if (threadIdx.x < batch)
                 {
                     record_pair pair = split_index(batch_buffer[threadIdx.x]);
-                    pair.id_low = record_map_d[record_map_d[pair.id_low] - 2];
-                    pair.id_high = record_map_d[record_map_d[pair.id_high] - 2];
                     overlap_t overlap = overlap_buffer[threadIdx.x];
-                    if (threadIdx.x == 0) { out_buffer[atomicAdd(out_counter, 1)] = pair; }
+                    if (are_sim(pair, overlap, threshold, overlap_factor, record_map_d))
+                    {
+                        pair.id_low = record_map_d[record_map_d[pair.id_low] - 2];
+                        pair.id_high = record_map_d[record_map_d[pair.id_high] - 2];
+                        out_buffer[atomicAdd(out_counter, 1)] = pair;
+                    }
                 }
             }
 
